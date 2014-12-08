@@ -54,15 +54,35 @@ parse([what,is,the,highest,grade],Result) :-
 		Result >= OtherGrade
 	),!.
 
+parse([what,is,the,lowest,grade],Result) :-
+  grade(_,_,Result),
+  forall(grade(_,_,OtherGrade),Result >= OtherGrade),!.
+
 % Stage A2 [5 points].  Modify the code so that it will also return
 % the lowest grade.
 
-parse([what,is,the,lowest,grade],Result) :-
+parse([what,is,the,X,grade],Result) :-
+  synonym(X,highest),
+  grade(_,_,Result),
+  forall(grade(_,_,OtherGrade),Result >= OtherGrade),!.
+
+parse([what,is,the,X,grade],Result) :-
+  synonym(X,lowest),
   grade(_,_,Result),
   forall(grade(_,_,OtherGrade),Result =< OtherGrade),!.
 
 % Stage A3 [5 points].  Modify the code above so you can use a variety
 % of synomyns for highest/lowest (largest, biggest, best, or whatever).
+
+same(highest,largest).
+same(largest,biggest).
+same(biggest,best).
+same(lowest,smallest).
+same(smallest,worst).
+same(worst,icky-est).
+transitive_same(X,Y,Z) :- (same(X,Y);same(Y,X)), \+ member(Y,Z).
+transitive_same(X,Y,Z) :- (same(X,Q);same(Q,X)), \+ member(Q,Z), transitive_same(Q,Y,[Q|Z]).
+synonym(X,Y) :- transitive_same(X,Y,[X]).
 
 % Stage A4 [10 points].  Modify the code so that you can ask
 % [who,has,the,highest,grade] and simliar queries (should return a
