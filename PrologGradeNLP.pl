@@ -40,6 +40,9 @@ parse([what,is,the,highest,grade],Result) :-
 		Result >= OtherGrade
 	),!.
 
+parse([what,is,the,lowest,grade],Result) :-
+  grade(_,_,Result),
+  forall(grade(_,_,OtherGrade),Result =< OtherGrade),!.
 
 % Stage A2 [5 points].  Modify the code so that it will also return
 % the lowest grade.
@@ -100,23 +103,9 @@ parse([what,is,the,highest,grade],Result) :-
 % get_char.  Make sure your input ignores it or your 2nd parse may be messed
 % up.
 %
-
-get_string('\n',[]) :- !.
-get_string(Head,[Head|Result]) :- get_char(Char), get_string(Char,Result).
-
-get_string(Result) :-
-	get_char(Char),
-	get_string(Char,Result).
-
-get_atoms([],[],[]) :- !.
-get_atoms([' ' | Line],[],[Atom | Atoms]) :- get_atoms(Line,Word,Atoms), atom_string(Atom,Word), !.
-get_atoms([Char | Line],[Char | Word],Atoms) :- get_atoms(Line, Word, Atoms).
-
-get_atoms(Atoms) :-
-	get_string(Line),
-	get_atoms(Line,Word,Tail),
-	atom_string(Atom,Word),
-	Atoms = [Atom | Tail].
+get_string(X) :- get_string_helper(Y), string_codes(X,Y).
+get_string_helper(X) :- get_code(Y), (Y = 10, X = []; get_string_helper(Z), X = [Y|Z]), !.
+get_words(X) :- get_string(Y), atomic_list_concat(X,' ',Y).
 
 % Stage C [30 points]: Improved parsing
 %
