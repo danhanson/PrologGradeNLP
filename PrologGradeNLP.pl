@@ -33,6 +33,20 @@ grade(cathy,girl,81).
 
 % Stage A1 [5 points].  Make the example parse above work.
 
+highestGrade(Person,Gender,Grade) :-
+	grade(Person,Gender,Grade),
+	forall(
+		grade(_,_,OtherGrade),
+		Grade >= OtherGrade
+	).
+
+lowestGrade(Person,Gender,Grade) :-
+	grade(Person,Gender,Grade),
+	forall(
+		grade(_,_,OtherGrade),
+		Grade =< OtherGrade
+	).
+
 parse([what,is,the,highest,grade],Result) :-
 	grade(_,_,Result),
 	forall(
@@ -40,12 +54,12 @@ parse([what,is,the,highest,grade],Result) :-
 		Result >= OtherGrade
 	),!.
 
+% Stage A2 [5 points].  Modify the code so that it will also return
+% the lowest grade.
+
 parse([what,is,the,lowest,grade],Result) :-
   grade(_,_,Result),
   forall(grade(_,_,OtherGrade),Result =< OtherGrade),!.
-
-% Stage A2 [5 points].  Modify the code so that it will also return
-% the lowest grade.
 
 % Stage A3 [5 points].  Modify the code above so you can use a variety
 % of synomyns for highest/lowest (largest, biggest, best, or whatever).
@@ -53,12 +67,27 @@ parse([what,is,the,lowest,grade],Result) :-
 % Stage A4 [10 points].  Modify the code so that you can ask
 % [who,has,the,highest,grade] and simliar queries (should return a
 % name).  You'll want to be careful to prevent too much duplication.
+
+parse([who,has,the,X,grade],Result) :-
+	synonym(X,highest),
+	highestGrade(Result,_,_).
+
+parse([who,has,the,X,grade],Result) :-
+	synonym(X,lowest),
+	lowestGrade(Result,_,_).
+
 %
 % Stage A5 [5 points].  Modify the code so that you can restrict the
 % range of the search.  If I say [...,above,82] it should restrict the
 % search to grades above 82.  If If I say [...,above,mike] and mike is
 % a name in the db, it should restrict the grades to grades above that
 % student's grade.
+
+parse([who,has,the,Highest,grade,above,Number],Result) :-
+	number(Number),
+	synonym(Highest,highest),
+	grade(Result,_,Grade),
+	forall(grade(_,_,OtherGrade),Grade >= OtherGrade).
 %
 % Stage A6 [5 points].  Same as above, but now if I say [...,for,girls]
 % it should restrict the search to girls.  If I say [...,for,a,students]
