@@ -43,7 +43,7 @@ transitive_same(X,Y,Z) :- (same(X,Y);same(Y,X)), \+ member(Y,Z).
 transitive_same(X,Y,Z) :- (same(X,Q);same(Q,X)), \+ member(Q,Z), transitive_same(Q,Y,[Q|Z]).
 synonym(X,Y) :- X = Y; transitive_same(X,Y,[X]).
 
-pparse(Query,Result) :-
+parse(Query,Result) :-
   splitter(Query,Noun,Adj,Restrictions),
   ( synonym(Adj,lowest), lowest(Grade,Gender,Person);
     synonym(Adj,highest), highest(Grade,Gender,Person)),
@@ -67,23 +67,28 @@ highest(Grade,Gender,Person) :-
   grade(Person,Gender,Grade),
   forall(grade(_,_,OtherGrade),Grade >= OtherGrade).
 
-
 % Stage A2 [5 points].  Modify the code so that it will also return
 % the lowest grade.
 
 % Stage A3 [5 points].  Modify the code above so you can use a variety
 % of synomyns for highest/lowest (largest, biggest, best, or whatever).
 
-
 % Stage A4 [10 points].  Modify the code so that you can ask
 % [who,has,the,highest,grade] and simliar queries (should return a
 % name).  You'll want to be careful to prevent too much duplication.
+
 %
 % Stage A5 [5 points].  Modify the code so that you can restrict the
 % range of the search.  If I say [...,above,82] it should restrict the
 % search to grades above 82.  If If I say [...,above,mike] and mike is
 % a name in the db, it should restrict the grades to grades above that
 % student's grade.
+
+parse([who,has,the,Highest,grade,above,Number],Result) :-
+	number(Number),
+	synonym(Highest,highest),
+	grade(Result,_,Grade),
+	forall(grade(_,_,OtherGrade),Grade >= OtherGrade).
 %
 % Stage A6 [5 points].  Same as above, but now if I say [...,for,girls]
 % it should restrict the search to girls.  If I say [...,for,a,students]
