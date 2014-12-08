@@ -33,14 +33,23 @@ grade(cathy,girl,81).
 
 % Stage A1 [5 points].  Make the example parse above work.
 
-parse([what,is,the,highest,grade],Result) :-
-	grade(_,_,Result),
-	forall(
-		grade(_,_,OtherGrade),
-		Result >= OtherGrade
-	),!.
+same(highest,largest).
+same(largest,biggest).
+same(biggest,best).
+same(lowest,smallest).
+same(smallest,worst).
+same(worst,icky-est).
+transitive_same(X,Y,Z) :- (same(X,Y);same(Y,X)), \+ member(Y,Z).
+transitive_same(X,Y,Z) :- (same(X,Q);same(Q,X)), \+ member(Q,Z), transitive_same(Q,Y,[Q|Z]).
+synonym(X,Y) :- transitive_same(X,Y,[X]).
 
-parse([what,is,the,lowest,grade],Result) :-
+parse([what,is,the,X,grade],Result) :-
+  synonym(X,highest),
+  grade(_,_,Result),
+  forall(grade(_,_,OtherGrade),Result >= OtherGrade),!.
+
+parse([what,is,the,X,grade],Result) :-
+  synonym(X,lowest),
   grade(_,_,Result),
   forall(grade(_,_,OtherGrade),Result =< OtherGrade),!.
 
