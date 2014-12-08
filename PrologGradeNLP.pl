@@ -41,23 +41,39 @@ same(smallest,worst).
 same(worst,icky-est).
 transitive_same(X,Y,Z) :- (same(X,Y);same(Y,X)), \+ member(Y,Z).
 transitive_same(X,Y,Z) :- (same(X,Q);same(Q,X)), \+ member(Q,Z), transitive_same(Q,Y,[Q|Z]).
-synonym(X,Y) :- transitive_same(X,Y,[X]).
+synonym(X,Y) :- X = Y; transitive_same(X,Y,[X]).
 
-parse([what,is,the,X,grade],Result) :-
-  synonym(X,highest),
-  grade(_,_,Result),
-  forall(grade(_,_,OtherGrade),Result >= OtherGrade),!.
+pparse(Query,Result) :-
+  splitter(Query,Noun,Adj,Restrictions),
+  ( synonym(Adj,lowest), lowest(Grade,Gender,Person);
+    synonym(Adj,highest), highest(Grade,Gender,Person)),
+  ( synonym(Noun,who), Result = Person;
+    synonym(Noun,what), Result = Grade).
 
-parse([what,is,the,X,grade],Result) :-
-  synonym(X,lowest),
-  grade(_,_,Result),
-  forall(grade(_,_,OtherGrade),Result =< OtherGrade),!.
+% does not yet support clauses
+splitter([],Noun,Adj,[]) :- atom(Noun), atom(Adj).
+splitter([H|T],H,Adj,Restrictions) :- is_subject(H), splitter(T,H,Adj,Restrictions), !.
+splitter([H|T],Noun,H,Restrictions) :- is_adj(H), splitter(T,Noun,H,Restrictions), !.
+splitter([_|T],Noun,Adj,Restrictions) :- splitter(T,Noun,Adj,Restrictions), !.
+
+is_subject(X) :- member(X,[who,what]).
+is_adj(X) :- synonym(X,lowest); synonym(X,highest).
+
+lowest(Grade,Gender,Person) :-
+  grade(Person,Gender,Grade),
+  forall(grade(_,_,OtherGrade),Grade =< OtherGrade).
+
+highest(Grade,Gender,Person) :-
+  grade(Person,Gender,Grade),
+  forall(grade(_,_,OtherGrade),Grade >= OtherGrade).
+
 
 % Stage A2 [5 points].  Modify the code so that it will also return
 % the lowest grade.
 
 % Stage A3 [5 points].  Modify the code above so you can use a variety
 % of synomyns for highest/lowest (largest, biggest, best, or whatever).
+
 
 % Stage A4 [10 points].  Modify the code so that you can ask
 % [who,has,the,highest,grade] and simliar queries (should return a
