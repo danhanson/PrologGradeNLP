@@ -48,16 +48,24 @@ parse(Query,Result) :-
   ( synonym(Adj,lowest), lowest(Grade,Gender,Person);
     synonym(Adj,highest), highest(Grade,Gender,Person)),
   ( synonym(Noun,who), Result = Person;
-    synonym(Noun,what), Result = Grade).
+    synonym(Noun,what), Result = Grade),
+  maplist(satisfies,Restrictions,Person,Gender,Grade).
 
 % does not yet support clauses
 splitter([],Noun,Adj,[]) :- atom(Noun), atom(Adj).
 splitter([H|T],H,Adj,Restrictions) :- is_subject(H), splitter(T,H,Adj,Restrictions), !.
 splitter([H|T],Noun,H,Restrictions) :- is_adj(H), splitter(T,Noun,H,Restrictions), !.
+splitter([H1|[H2|T]],Noun,Adj,[[H1,H2]|Restrictions]) :-
+  is_restriction(H1,H2), splitter(T,Noun,Adj,Restrictions), !.
 splitter([_|T],Noun,Adj,Restrictions) :- splitter(T,Noun,Adj,Restrictions), !.
 
 is_subject(X) :- member(X,[who,what]).
 is_adj(X) :- synonym(X,lowest); synonym(X,highest).
+is_gender(X) :- synonym(X,boys); synonym(X,girls).
+is_restriction(X,Y) :- synonym(X,for), is_gender(Y).
+is_restriction(X,Y) :- (synonym(X,below);synonym(X,above)), (grade(Y,_,_);number(Y)).
+
+satisfies([For,Gender],_,Gender,_) :- synonym(For,for), is_gender(Gender).
 
 lowest(Grade,Gender,Person) :-
   grade(Person,Gender,Grade),
@@ -84,7 +92,7 @@ highest(Grade,Gender,Person) :-
 % a name in the db, it should restrict the grades to grades above that
 % student's grade.
 
-parse([who,has,the,Highest,grade,above,Number],Result) :-
+old_parse([who,has,the,Highest,grade,above,Number],Result) :-
 	number(Number),
 	synonym(Highest,highest),
 	grade(Result,_,Grade),
