@@ -103,11 +103,43 @@ parse([who,has,the,X,grade],Result) :-
 % a name in the db, it should restrict the grades to grades above that
 % student's grade.
 
-parse([who,has,the,Highest,grade,above,Number],Result) :-
+parse([who,has,the,Lowest,grade,above,Number],Result) :-
+	number(Number),
+	synonym(Lowest,lowest),
+	grade(Result,_,Grade),
+	Grade > Number,
+	forall(
+		grade(_,_,OtherGrade),
+		(
+			Grade >= OtherGrade;
+			OtherGrade =< Number;
+		).
+	).
+
+parse([who,has,the,Lowest,grade,below,Number],Result) :-
+	number(Number),
+	synonym(Lowest),
+	lowestGrade(Result,_,Grade),
+	Grade < Number.
+
+parse([who,has,the,Highest,grade,below,Number],Result) :-
 	number(Number),
 	synonym(Highest,highest),
 	grade(Result,_,Grade),
-	forall(grade(_,_,OtherGrade),Grade >= OtherGrade).
+	Grade < Number,
+	forall(
+		grade(_,_,OtherGrade),
+		(
+			Grade >= OtherGrade;
+			OtherGrade >= Number;
+		).
+	).
+
+parse([who,has,the,Lowest,grade,above,Number],Result) :-
+	number(Number),
+	synonym(Lowest),
+	lowestGrade(Result,_,Grade),
+	Grade < Number.
 %
 % Stage A6 [5 points].  Same as above, but now if I say [...,for,girls]
 % it should restrict the search to girls.  If I say [...,for,a,students]
