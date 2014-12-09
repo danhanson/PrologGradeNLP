@@ -52,12 +52,12 @@ parse(Query,Result) :-
   forall(
     maplist(satisfies(_,_,OtherGrade),Restrictions),
     ( synonym(Adj,highest), Grade >= OtherGrade;
-      synonym(Adj,lowest),  Grade =< OtherGrade)
+      synonym(Adj,lowest), Grade =< OtherGrade)
   ),
   ( synonym(Noun,who),  Result = Person;
     synonym(Noun,what), Result = Grade).
 
-splitter([],Noun,Adj,[]) :- atom(Noun), atom(Adj).
+splitter([],Noun,Adj,[[]]) :- atom(Noun), atom(Adj).
 splitter([H|T],H,Adj,Restrictions) :- is_subject(H), splitter(T,H,Adj,Restrictions), !.
 splitter([H|T],Noun,H,Restrictions) :- is_adj(H), splitter(T,Noun,H,Restrictions), !.
 splitter([H1|[H2|T]],Noun,Adj,[[H1,H2]|Restrictions]) :-
@@ -70,22 +70,15 @@ is_gender(X) :- synonym(X,boys); synonym(X,girls).
 is_restriction(X,Y) :- synonym(X,for), is_gender(Y).
 is_restriction(X,Y) :- (synonym(X,below);synonym(X,above)), (grade(Y,_,_);number(Y)).
 
-%satisfies([For,Gender],_,Gender,_) :- synonym(For,for), is_gender(Gender).
-%satisfies(Person,Gender,Grade,Restriction)
-%satisfies(_,girl,_,_).
-satisfies(Per,Gen,Gra,[For,Gender]) :-
-  synonym(For,for),
-  synonym(Gen,Gender),
-  grade(Per,Gen,Gra).
-
-
-lowest(Grade,Gender,Person) :-
-  grade(Person,Gender,Grade),
-  forall(grade(_,_,OtherGrade),Grade =< OtherGrade).
-
-highest(Grade,Gender,Person) :-
-  grade(Person,Gender,Grade),
-  forall(grade(_,_,OtherGrade),Grade >= OtherGrade).
+satisfies(Per,Gen,Gra,[]) :- grade(Per,Gen,Gra). % otherwise maplist doesn't bind the value
+satisfies(Per,Gen,Gra,[For,Gender]) :- synonym(For,for), synonym(Gen,Gender), grade(Per,Gen,Gra).
+satisfies(Per,Gen,Gra,[Prep,Clause]) :-
+  ( synonym(Prep,for), synonym(Gen,Clause), grade(Per,Gen,_);
+    grade(Per,Gen,Gra),
+    ( number(Clause), Grade is Clause;
+      grade(Clause,_,Grade)),
+    ( synonym(Prep,above), Gra > Grade;
+      synonym(Prep,below), Gra < Grade)).
 
 % Stage A2 [5 points].  Modify the code so that it will also return
 % the lowest grade.
@@ -104,11 +97,6 @@ highest(Grade,Gender,Person) :-
 % a name in the db, it should restrict the grades to grades above that
 % student's grade.
 
-old_parse([who,has,the,Highest,grade,above,Number],Result) :-
-	number(Number),
-	synonym(Highest,highest),
-	grade(Result,_,Grade),
-	forall(grade(_,_,OtherGrade),Grade >= OtherGrade).
 %
 % Stage A6 [5 points].  Same as above, but now if I say [...,for,girls]
 % it should restrict the search to girls.  If I say [...,for,a,students]
