@@ -33,47 +33,6 @@ grade(cathy,girl,81).
 
 % Stage A1 [5 points].  Make the example parse above work.
 
-highestGrade(Person,Gender,Grade) :-
-	grade(Person,Gender,Grade),
-	forall(
-		grade(_,_,OtherGrade),
-		Grade >= OtherGrade
-	).
-
-lowestGrade(Person,Gender,Grade) :-
-	grade(Person,Gender,Grade),
-	forall(
-		grade(_,_,OtherGrade),
-		Grade =< OtherGrade
-	).
-
-parse([what,is,the,highest,grade],Result) :-
-	grade(_,_,Result),
-	forall(
-		grade(_,_,OtherGrade),
-		Result >= OtherGrade
-	),!.
-
-parse([what,is,the,lowest,grade],Result) :-
-  grade(_,_,Result),
-  forall(grade(_,_,OtherGrade),Result >= OtherGrade),!.
-
-% Stage A2 [5 points].  Modify the code so that it will also return
-% the lowest grade.
-
-parse([what,is,the,X,grade],Result) :-
-  synonym(X,highest),
-  grade(_,_,Result),
-  forall(grade(_,_,OtherGrade),Result >= OtherGrade),!.
-
-parse([what,is,the,X,grade],Result) :-
-  synonym(X,lowest),
-  grade(_,_,Result),
-  forall(grade(_,_,OtherGrade),Result =< OtherGrade),!.
-
-% Stage A3 [5 points].  Modify the code above so you can use a variety
-% of synomyns for highest/lowest (largest, biggest, best, or whatever).
-
 same(highest,largest).
 same(largest,biggest).
 same(biggest,best).
@@ -82,19 +41,49 @@ same(smallest,worst).
 same(worst,icky-est).
 transitive_same(X,Y,Z) :- (same(X,Y);same(Y,X)), \+ member(Y,Z).
 transitive_same(X,Y,Z) :- (same(X,Q);same(Q,X)), \+ member(Q,Z), transitive_same(Q,Y,[Q|Z]).
-synonym(X,Y) :- transitive_same(X,Y,[X]).
+synonym(X,Y) :- X = Y; transitive_same(X,Y,[X]).
+
+parse(Query,Result) :-
+  splitter(Query,Noun,Adj,Restrictions),
+  ( synonym(Adj,lowest), lowest(Grade,Gender,Person);
+    synonym(Adj,highest), highest(Grade,Gender,Person)),
+  ( synonym(Noun,who), Result = Person;
+    synonym(Noun,what), Result = Grade),
+  maplist(satisfies,Restrictions,Person,Gender,Grade).
+
+% does not yet support clauses
+splitter([],Noun,Adj,[]) :- atom(Noun), atom(Adj).
+splitter([H|T],H,Adj,Restrictions) :- is_subject(H), splitter(T,H,Adj,Restrictions), !.
+splitter([H|T],Noun,H,Restrictions) :- is_adj(H), splitter(T,Noun,H,Restrictions), !.
+splitter([H1|[H2|T]],Noun,Adj,[[H1,H2]|Restrictions]) :-
+  is_restriction(H1,H2), splitter(T,Noun,Adj,Restrictions), !.
+splitter([_|T],Noun,Adj,Restrictions) :- splitter(T,Noun,Adj,Restrictions), !.
+
+is_subject(X) :- member(X,[who,what]).
+is_adj(X) :- synonym(X,lowest); synonym(X,highest).
+is_gender(X) :- synonym(X,boys); synonym(X,girls).
+is_restriction(X,Y) :- synonym(X,for), is_gender(Y).
+is_restriction(X,Y) :- (synonym(X,below);synonym(X,above)), (grade(Y,_,_);number(Y)).
+
+satisfies([For,Gender],_,Gender,_) :- synonym(For,for), is_gender(Gender).
+
+lowest(Grade,Gender,Person) :-
+  grade(Person,Gender,Grade),
+  forall(grade(_,_,OtherGrade),Grade =< OtherGrade).
+
+highest(Grade,Gender,Person) :-
+  grade(Person,Gender,Grade),
+  forall(grade(_,_,OtherGrade),Grade >= OtherGrade).
+
+% Stage A2 [5 points].  Modify the code so that it will also return
+% the lowest grade.
+
+% Stage A3 [5 points].  Modify the code above so you can use a variety
+% of synomyns for highest/lowest (largest, biggest, best, or whatever).
 
 % Stage A4 [10 points].  Modify the code so that you can ask
 % [who,has,the,highest,grade] and simliar queries (should return a
 % name).  You'll want to be careful to prevent too much duplication.
-
-parse([who,has,the,X,grade],Result) :-
-	synonym(X,highest),
-	highestGrade(Result,_,_).
-
-parse([who,has,the,X,grade],Result) :-
-	synonym(X,lowest),
-	lowestGrade(Result,_,_).
 
 %
 % Stage A5 [5 points].  Modify the code so that you can restrict the
@@ -103,7 +92,7 @@ parse([who,has,the,X,grade],Result) :-
 % a name in the db, it should restrict the grades to grades above that
 % student's grade.
 
-parse([who,has,the,Lowest,grade,above,Number],Result) :-
+oldparse([who,has,the,Lowest,grade,above,Number],Result) :-
 	number(Number),
 	synonym(Lowest,lowest),
 	grade(Result,_,Grade),
@@ -112,17 +101,17 @@ parse([who,has,the,Lowest,grade,above,Number],Result) :-
 		grade(_,_,OtherGrade),
 		(
 			Grade >= OtherGrade;
-			OtherGrade =< Number;
-		).
+			OtherGrade =< Number
+		)
 	).
 
-parse([who,has,the,Lowest,grade,below,Number],Result) :-
+oldparse([who,has,the,Lowest,grade,below,Number],Result) :-
 	number(Number),
 	synonym(Lowest),
 	lowestGrade(Result,_,Grade),
 	Grade < Number.
 
-parse([who,has,the,Highest,grade,below,Number],Result) :-
+oldparse([who,has,the,Highest,grade,below,Number],Result) :-
 	number(Number),
 	synonym(Highest,highest),
 	grade(Result,_,Grade),
@@ -131,15 +120,15 @@ parse([who,has,the,Highest,grade,below,Number],Result) :-
 		grade(_,_,OtherGrade),
 		(
 			Grade >= OtherGrade;
-			OtherGrade >= Number;
-		).
+			OtherGrade >= Number
+		)
 	).
 
-parse([who,has,the,Lowest,grade,above,Number],Result) :-
+oldparse([who,has,the,Highest,grade,above,Number],Result) :-
 	number(Number),
-	synonym(Lowest),
-	lowestGrade(Result,_,Grade),
-	Grade < Number.
+	synonym(Highest,highest),
+	highestGrade(Result,_,Grade),
+	Grade > Number.
 %
 % Stage A6 [5 points].  Same as above, but now if I say [...,for,girls]
 % it should restrict the search to girls.  If I say [...,for,a,students]
@@ -187,6 +176,12 @@ parse([who,has,the,Lowest,grade,above,Number],Result) :-
 get_string(X) :- get_string_helper(Y), string_codes(X,Y).
 get_string_helper(X) :- get_code(Y), (Y = 10, X = []; get_string_helper(Z), X = [Y|Z]), !.
 get_words(X) :- get_string(Y), atomic_list_concat(X,' ',Y).
+
+do_nlp(Start) :-
+	get_words(Words),
+	parse(Words,Result),
+	write(Result),
+	do_nlp(Start).
 
 % Stage C [30 points]: Improved parsing
 %
