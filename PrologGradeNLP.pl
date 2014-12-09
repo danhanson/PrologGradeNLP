@@ -39,19 +39,24 @@ same(biggest,best).
 same(lowest,smallest).
 same(smallest,worst).
 same(worst,icky-est).
+same(girl,girls).
+same(boy,boys).
 transitive_same(X,Y,Z) :- (same(X,Y);same(Y,X)), \+ member(Y,Z).
 transitive_same(X,Y,Z) :- (same(X,Q);same(Q,X)), \+ member(Q,Z), transitive_same(Q,Y,[Q|Z]).
 synonym(X,Y) :- X = Y; transitive_same(X,Y,[X]).
 
 parse(Query,Result) :-
   splitter(Query,Noun,Adj,Restrictions),
-  ( synonym(Adj,lowest), lowest(Grade,Gender,Person);
-    synonym(Adj,highest), highest(Grade,Gender,Person)),
-  ( synonym(Noun,who), Result = Person;
-    synonym(Noun,what), Result = Grade),
-  maplist(satisfies,Restrictions,Person,Gender,Grade).
+  grade(Person,Gender,Grade),
+  maplist(satisfies(Person,Gender,Grade),Restrictions),
+  forall(
+    maplist(satisfies(_,_,OtherGrade),Restrictions),
+    ( synonym(Adj,highest), Grade >= OtherGrade;
+      synonym(Adj,lowest),  Grade =< OtherGrade)
+  ),
+  ( synonym(Noun,who),  Result = Person;
+    synonym(Noun,what), Result = Grade).
 
-% does not yet support clauses
 splitter([],Noun,Adj,[]) :- atom(Noun), atom(Adj).
 splitter([H|T],H,Adj,Restrictions) :- is_subject(H), splitter(T,H,Adj,Restrictions), !.
 splitter([H|T],Noun,H,Restrictions) :- is_adj(H), splitter(T,Noun,H,Restrictions), !.
@@ -65,7 +70,14 @@ is_gender(X) :- synonym(X,boys); synonym(X,girls).
 is_restriction(X,Y) :- synonym(X,for), is_gender(Y).
 is_restriction(X,Y) :- (synonym(X,below);synonym(X,above)), (grade(Y,_,_);number(Y)).
 
-satisfies([For,Gender],_,Gender,_) :- synonym(For,for), is_gender(Gender).
+%satisfies([For,Gender],_,Gender,_) :- synonym(For,for), is_gender(Gender).
+%satisfies(Person,Gender,Grade,Restriction)
+%satisfies(_,girl,_,_).
+satisfies(Per,Gen,Gra,[For,Gender]) :-
+  synonym(For,for),
+  synonym(Gen,Gender),
+  grade(Per,Gen,Gra).
+
 
 lowest(Grade,Gender,Person) :-
   grade(Person,Gender,Grade),
