@@ -52,13 +52,17 @@ parse(Query,Result) :-
 	(
 	  (
 	    synonym(Noun,who),
-		synonym(Adj,highest),highest(_,_,Result);
-		synonym(Adj,lowest),lowest(_,_,Result)
+		(
+			synonym(Adj,highest),highest(_,_,Result);
+			synonym(Adj,lowest),lowest(_,_,Result)
+		)
 	  );
 	  (
 	    synonym(Noun,what),
-		synonym(Adj,highest),highest(Result,_,_);
-		synonym(Adj,lowest),lowest(Result,_,_)
+		(
+			synonym(Adj,highest),highest(Result,_,_);
+			synonym(Adj,lowest),lowest(Result,_,_)
+		)
 	  )
 	);
 	(
@@ -72,7 +76,7 @@ parse(Query,Result) :-
 	  ( synonym(Noun,who),  Result = Person;
 		synonym(Noun,what), Result = Grade)
 	)
-  ).
+  ),!.
 
 splitter([],Noun,Adj,[[]]) :- atom(Noun), atom(Adj).
 splitter([H|T],H,Adj,Restrictions) :- is_subject(H), splitter(T,H,Adj,Restrictions), !.
@@ -196,7 +200,7 @@ oldparse([who,has,the,Highest,grade,above,Number],Result) :-
 % up.
 %
 get_string(X) :- get_string_helper(Y), string_codes(X,Y).
-get_string_helper(X) :- get_code(Y), (Y = 10, X = []; get_string_helper(Z), X = [Y|Z]), !.
+get_string_helper(X) :- get_code(Y), (Y = 10,X = []; get_string_helper(Z), X = [Y|Z]), !.
 get_words(X) :- get_string(Y), atomic_list_concat(X,' ',Y).
 
 do_nlp(Start) :-
