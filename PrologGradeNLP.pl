@@ -61,7 +61,7 @@ parse(Query,Result) :-
 
 splitter([],Noun,Adj,[[]]) :- atom(Noun), atom(Adj). % see comment in satisfies/4 for double nested list
 splitter([H|T],Noun,Adj,Restrictions) :- \+atom(Noun), is_subject(H), splitter(T,H,Adj,Restrictions), Noun = H, !.
-splitter([H,Object|T],Noun,H,Restrictions) :- is_adj(H), synonym(Object,grade), splitter(T,Noun,H,Restrictions), !.
+splitter([H,Object|T],Noun,H,Restrictions) :- is_adj(H), synonym(Object,grade), splitter([Object|T],Noun,H,Restrictions), !.
 splitter([Object,H1,H2|T],Noun,Adj,[[H1,H2]|Restrictions]) :- % first restriction clause
   synonym(Object,grade), is_restriction(H1,H2), splitter(T,Noun,Adj,Restrictions).
 splitter([who,are,H1,H2|T],Noun,Adj,[[H1,H2]|Restrictions]) :- % all other restrictions clauses
@@ -165,8 +165,18 @@ satisfies(Per,Gen,Gra,[Prep,Clause]) :-
 % up.
 %
 get_string(X) :- get_string_helper(Y), string_codes(X,Y).
-get_string_helper(X) :- get_code(Y), (Y = 10, X = []; get_string_helper(Z), X = [Y|Z]), !.
-get_words(X) :- get_string(Y), atomic_list_concat(X,' ',Y).
+get_string_helper(X) :- get_code(Y),(Y = 10,X = []; get_string_helper(Z), X = [Y|Z]), !.
+get_words(Q) :- get_string(Y), atomic_list_concat(X,' ',Y), maplist(downcase_atom,X,Z), maplist(numerize,Z,Q).
+
+numerize(X,Y) :- atom_number(X,Y), !.
+numerize(X,X).
+
+do_nlp(Start) :-
+  get_words(Words),
+  parse(Words,Result),
+  write(Result),
+  write('\n'),
+  do_nlp(Start).
 
 % Stage C [30 points]: Improved parsing
 %
