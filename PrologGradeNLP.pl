@@ -47,6 +47,17 @@ transitive_same(X,Y,Z) :- (same(X,Y);same(Y,X)), \+ member(Y,Z).
 transitive_same(X,Y,Z) :- (same(X,Q);same(Q,X)), \+ member(Q,Z), transitive_same(Q,Y,[Q|Z]).
 synonym(X,Y) :- X = Y; transitive_same(X,Y,[X]).
 
+is_word(Word) :-
+	(
+		Word = who;
+		Word = has;
+		Word = the;
+		Word = grade;
+		Word = for;
+		Word = all
+	),!.
+is_word(X) :- (synonym(X,_); grade(X,_,_)),!.
+
 parse(Query,Result) :-
   splitter(Query,Noun,Adj,Restrictions),
   grade(Person,Gender,Grade),
@@ -125,7 +136,6 @@ satisfies(Per,Gen,Gra,[Prep,Clause]) :-
 % search to grades above 82.  If If I say [...,above,mike] and mike is
 % a name in the db, it should restrict the grades to grades above that
 % student's grade.
-
 %
 % Stage A6 [5 points].  Same as above, but now if I say [...,for,girls]
 % it should restrict the search to girls.  If I say [...,for,a,students]
@@ -171,7 +181,7 @@ satisfies(Per,Gen,Gra,[Prep,Clause]) :-
 % up.
 %
 get_string(X) :- get_string_helper(Y), string_codes(X,Y).
-get_string_helper(X) :- get_code(Y),(Y = 10,X = []; get_string_helper(Z), X = [Y|Z]), !.
+get_string_helper(X) :- get_code(Y),(Y = 63,get_code(10),X = []; get_string_helper(Z), X = [Y|Z]), !.
 get_words(Q) :- get_string(Y), atomic_list_concat(X,' ',Y), maplist(downcase_atom,X,Z), maplist(numerize,Z,Q).
 
 numerize(X,Y) :- atom_number(X,Y), !.
