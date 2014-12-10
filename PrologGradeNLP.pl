@@ -41,6 +41,8 @@ same(smallest,worst).
 same(worst,icky-est).
 same(girl,girls).
 same(boy,boys).
+same(students,people).
+same(students,young-uns).
 transitive_same(X,Y,Z) :- (same(X,Y);same(Y,X)), \+ member(Y,Z).
 transitive_same(X,Y,Z) :- (same(X,Q);same(Q,X)), \+ member(Q,Z), transitive_same(Q,Y,[Q|Z]).
 synonym(X,Y) :- X = Y; transitive_same(X,Y,[X]).
@@ -57,10 +59,12 @@ parse(Query,Result) :-
   ( synonym(Noun,who),  Result = Person;
     synonym(Noun,what), Result = Grade).
 
-splitter([],Noun,Adj,[[]]) :- atom(Noun), atom(Adj).
-splitter([H|T],H,Adj,Restrictions) :- is_subject(H), splitter(T,H,Adj,Restrictions), !.
-splitter([H|T],Noun,H,Restrictions) :- is_adj(H), splitter(T,Noun,H,Restrictions), !.
-splitter([H1|[H2|T]],Noun,Adj,[[H1,H2]|Restrictions]) :-
+splitter([],Noun,Adj,[[]]) :- atom(Noun), atom(Adj). % see comment in satisfies/4 for double nested list
+splitter([H|T],Noun,Adj,Restrictions) :- \+atom(Noun), is_subject(H), splitter(T,H,Adj,Restrictions), Noun = H, !.
+splitter([H,Object|T],Noun,H,Restrictions) :- is_adj(H), synonym(Object,grade), splitter(T,Noun,H,Restrictions), !.
+splitter([Object,H1,H2|T],Noun,Adj,[[H1,H2]|Restrictions]) :- % first restriction clause
+  synonym(Object,grade), is_restriction(H1,H2), splitter(T,Noun,Adj,Restrictions).
+splitter([who,are,H1,H2|T],Noun,Adj,[[H1,H2]|Restrictions]) :- % all other restrictions clauses
   is_restriction(H1,H2), splitter(T,Noun,Adj,Restrictions), !.
 splitter([_|T],Noun,Adj,Restrictions) :- splitter(T,Noun,Adj,Restrictions), !.
 
@@ -68,17 +72,36 @@ is_subject(X) :- member(X,[who,what]).
 is_adj(X) :- synonym(X,lowest); synonym(X,highest).
 is_gender(X) :- synonym(X,boys); synonym(X,girls).
 is_restriction(X,Y) :- synonym(X,for), is_gender(Y).
-is_restriction(X,Y) :- (synonym(X,below);synonym(X,above)), (grade(Y,_,_);number(Y)).
+is_restriction(X,Y) :- (synonym(X,below); synonym(X,above)), (grade(Y,_,_); number(Y)).
+is_restriction(X,Y) :- synonym(Y,students), letter_grade(X,_,_).
+
+letter_grade(a,90,101).
+letter_grade(b,80,90).
+letter_grade(c,70,80).
+letter_grade(d,60,70).
+letter_grade(f,0,60).
+
 
 satisfies(Per,Gen,Gra,[]) :- grade(Per,Gen,Gra). % otherwise maplist doesn't bind the value
 satisfies(Per,Gen,Gra,[For,Gender]) :- synonym(For,for), synonym(Gen,Gender), grade(Per,Gen,Gra).
 satisfies(Per,Gen,Gra,[Prep,Clause]) :-
-  ( synonym(Prep,for), synonym(Gen,Clause), grade(Per,Gen,_);
-    grade(Per,Gen,Gra),
-    ( number(Clause), Grade is Clause;
-      grade(Clause,_,Grade)),
-    ( synonym(Prep,above), Gra > Grade;
-      synonym(Prep,below), Gra < Grade)).
+  grade(Per,Gen,Gra),
+  ( 
+    ( % 'for girls'
+      synonym(Prep,for), synonym(Gen,Clause), grade(Per,Gen,_)
+    );
+    (
+      ( number(Clause), Grade is Clause;  % 'above 87'
+        grade(Clause,_,Grade)),           % 'below mike'
+      ( synonym(Prep,above), Gra > Grade;
+        synonym(Prep,below), Gra < Grade)
+    );
+    ( % 'b students'
+      Clause = students, 
+      letter_grade(Prep,LowerBound,UpperBound),
+      Gra >= LowerBound, Gra < UpperBound
+    )
+  ).
 
 % Stage A2 [5 points].  Modify the code so that it will also return
 % the lowest grade.
