@@ -53,13 +53,13 @@ parse(Query,Result) :-
 	  (
 	    synonym(Noun,who),
 		synonym(Adj,highest),highest(_,_,Result);
-		synonym(Adj,lowest),highest(Result,_,Result)
+		synonym(Adj,lowest),lowest(_,_,Result)
 	  );
 	  (
 	    synonym(Noun,what),
 		synonym(Adj,highest),highest(Result,_,_);
-		synonym(Adj,lowest),highest(Result,_,_)
-	  );
+		synonym(Adj,lowest),lowest(Result,_,_)
+	  )
 	);
 	(
 	  grade(Person,Gender,Grade),
@@ -74,7 +74,7 @@ parse(Query,Result) :-
 	)
   ).
 
-splitter([],Noun,Adj,[]) :- atom(Noun), atom(Adj).
+splitter([],Noun,Adj,[[]]) :- atom(Noun), atom(Adj).
 splitter([H|T],H,Adj,Restrictions) :- is_subject(H), splitter(T,H,Adj,Restrictions), !.
 splitter([H|T],Noun,H,Restrictions) :- is_adj(H), splitter(T,Noun,H,Restrictions), !.
 splitter([H1,H2|T],Noun,Adj,[[H1,H2]|Restrictions]) :-
@@ -87,22 +87,15 @@ is_gender(X) :- synonym(X,boys); synonym(X,girls).
 is_restriction(X,Y) :- synonym(X,for), is_gender(Y).
 is_restriction(X,Y) :- (synonym(X,below);synonym(X,above)), (grade(Y,_,_);number(Y)).
 
-%satisfies([For,Gender],_,Gender,_) :- synonym(For,for), is_gender(Gender).
-%satisfies(Person,Gender,Grade,Restriction)
-%satisfies(_,girl,_,_).
-satisfies(Per,Gen,Gra,[For,Gender]) :-
-  synonym(For,for),
-  synonym(Gen,Gender),
-  grade(Per,Gen,Gra).
-
-
-lowest(Grade,Gender,Person) :-
-  grade(Person,Gender,Grade),
-  forall(grade(_,_,OtherGrade),Grade =< OtherGrade).
-
-highest(Grade,Gender,Person) :-
-  grade(Person,Gender,Grade),
-  forall(grade(_,_,OtherGrade),Grade >= OtherGrade).
+satisfies(Per,Gen,Gra,[]) :- grade(Per,Gen,Gra). % otherwise maplist doesn't bind the value
+satisfies(Per,Gen,Gra,[For,Gender]) :- synonym(For,for), synonym(Gen,Gender), grade(Per,Gen,Gra).
+satisfies(Per,Gen,Gra,[Prep,Clause]) :-
+  ( synonym(Prep,for), synonym(Gen,Clause), grade(Per,Gen,_);
+    grade(Per,Gen,Gra),
+    ( number(Clause), Grade is Clause;
+      grade(Clause,_,Grade)),
+    ( synonym(Prep,above), Gra > Grade;
+      synonym(Prep,below), Gra < Grade)).
 
 % Stage A2 [5 points].  Modify the code so that it will also return
 % the lowest grade.
