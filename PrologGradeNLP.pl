@@ -48,14 +48,14 @@ transitive_same(X,Y,Z) :- (same(X,Q);same(Q,X)), \+ member(Q,Z), transitive_same
 synonym(X,Y) :- X = Y; transitive_same(X,Y,[X]).
 
 is_word(Word) :-
-	(
-		Word = who;
-		Word = has;
-		Word = the;
-		Word = grade;
-		Word = for;
-		Word = all
-	),!.
+(
+  Word = who;
+  Word = has;
+  Word = the;
+  Word = grade;
+  Word = for;
+  Word = all
+),!.
 is_word(X) :- (synonym(X,_); grade(X,_,_)),!.
 
 parse(Query,Result) :-
