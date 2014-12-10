@@ -181,11 +181,13 @@ get_words(Q) :- get_string(Y), atomic_list_concat(X,' ',Y), maplist(downcase_ato
 numerize(X,Y) :- atom_number(X,Y), !.
 numerize(X,X).
 
+writeln(X) :- write(X),write('\n').
+
 do_nlp(Start) :-
   get_words(Words),
-  parse(Words,Result),
-  write(Result),
-  write('\n'),
+  findall(Result,parse(Words,Result),Results),
+  list_to_set(Results,UniqueResults),
+  maplist(writeln,UniqueResults),
   do_nlp(Start).
 
 % Stage C [30 points]: Improved parsing
