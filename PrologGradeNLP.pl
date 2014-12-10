@@ -48,14 +48,14 @@ transitive_same(X,Y,Z) :- (same(X,Q);same(Q,X)), \+ member(Q,Z), transitive_same
 synonym(X,Y) :- X = Y; transitive_same(X,Y,[X]).
 
 is_word(Word) :-
-	(
-		Word = who;
-		Word = has;
-		Word = the;
-		Word = grade;
-		Word = for;
-		Word = all
-	),!.
+(
+  Word = who;
+  Word = has;
+  Word = the;
+  Word = grade;
+  Word = for;
+  Word = all
+),!.
 is_word(X) :- (synonym(X,_); grade(X,_,_)),!.
 
 parse(Query,Result) :-
@@ -69,6 +69,12 @@ parse(Query,Result) :-
   ),
   ( synonym(Noun,who),  Result = Person;
     synonym(Noun,what), Result = Grade).
+
+% all restrictions are two words, but 'for A students' is 3 words so we remove the 'for'
+% for consistency
+normalize_restrictions([],[]).
+normalize_restrictions([for,X,students|T1],[X,students|T2]) :- normalize_restrictions(T1,T2), !.
+normalize_restrictions([H|T1],[H|T2]) :- normalize_restrictions(T1,T2).
 
 splitter([],Noun,Adj,[[]]) :- atom(Noun), atom(Adj). % see comment in satisfies/4 for double nested list
 splitter([H|T],Noun,Adj,Restrictions) :- \+atom(Noun), is_subject(H), splitter(T,H,Adj,Restrictions), Noun = H, !.
