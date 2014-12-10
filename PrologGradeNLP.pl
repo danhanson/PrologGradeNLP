@@ -47,20 +47,37 @@ synonym(X,Y) :- X = Y; transitive_same(X,Y,[X]).
 
 parse(Query,Result) :-
   splitter(Query,Noun,Adj,Restrictions),
-  grade(Person,Gender,Grade),
-  maplist(satisfies(Person,Gender,Grade),Restrictions),
-  forall(
-    maplist(satisfies(_,_,OtherGrade),Restrictions),
-    ( synonym(Adj,highest), Grade >= OtherGrade;
-      synonym(Adj,lowest),  Grade =< OtherGrade)
-  ),
-  ( synonym(Noun,who),  Result = Person;
-    synonym(Noun,what), Result = Grade).
+  (
+	Restrictions = [],
+	(
+	  (
+	    synonym(Noun,who),
+		synonym(Adj,highest),highest(_,_,Result);
+		synonym(Adj,lowest),highest(Result,_,Result)
+	  );
+	  (
+	    synonym(Noun,what),
+		synonym(Adj,highest),highest(Result,_,_);
+		synonym(Adj,lowest),highest(Result,_,_)
+	  );
+	);
+	(
+	  grade(Person,Gender,Grade),
+	  maplist(satisfies(Person,Gender,Grade),Restrictions),
+	  forall(
+		maplist(satisfies(_,_,OtherGrade),Restrictions),
+		( synonym(Adj,highest), Grade >= OtherGrade;
+		  synonym(Adj,lowest),  Grade =< OtherGrade)
+	  ),
+	  ( synonym(Noun,who),  Result = Person;
+		synonym(Noun,what), Result = Grade)
+	)
+  ).
 
 splitter([],Noun,Adj,[]) :- atom(Noun), atom(Adj).
 splitter([H|T],H,Adj,Restrictions) :- is_subject(H), splitter(T,H,Adj,Restrictions), !.
 splitter([H|T],Noun,H,Restrictions) :- is_adj(H), splitter(T,Noun,H,Restrictions), !.
-splitter([H1|[H2|T]],Noun,Adj,[[H1,H2]|Restrictions]) :-
+splitter([H1,H2|T],Noun,Adj,[[H1,H2]|Restrictions]) :-
   is_restriction(H1,H2), splitter(T,Noun,Adj,Restrictions), !.
 splitter([_|T],Noun,Adj,Restrictions) :- splitter(T,Noun,Adj,Restrictions), !.
 
@@ -193,6 +210,7 @@ do_nlp(Start) :-
 	get_words(Words),
 	parse(Words,Result),
 	write(Result),
+	write('\n'),
 	do_nlp(Start).
 
 % Stage C [30 points]: Improved parsing
