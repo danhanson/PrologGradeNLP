@@ -200,8 +200,8 @@ oldparse([who,has,the,Highest,grade,above,Number],Result) :-
 % up.
 %
 get_string(X) :- get_string_helper(Y), string_codes(X,Y).
-get_string_helper(X) :- get_code(Y), (Y = 10,X = []; get_string_helper(Z), X = [Y|Z]), !.
-get_words(X) :- get_string(Y), atomic_list_concat(X,' ',Y).
+get_string_helper(X) :- get_code(Y),(Y = 10,X = []; get_string_helper(Z), X = [Y|Z]), !.
+get_words(Z) :- get_string(Y), atomic_list_concat(X,' ',Y), maplist(downcase_atom,X,Z).
 
 do_nlp(Start) :-
 	get_words(Words),
