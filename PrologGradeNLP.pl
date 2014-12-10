@@ -45,6 +45,17 @@ transitive_same(X,Y,Z) :- (same(X,Y);same(Y,X)), \+ member(Y,Z).
 transitive_same(X,Y,Z) :- (same(X,Q);same(Q,X)), \+ member(Q,Z), transitive_same(Q,Y,[Q|Z]).
 synonym(X,Y) :- X = Y; transitive_same(X,Y,[X]).
 
+is_word(Word) :-
+	(
+		Word = who;
+		Word = has;
+		Word = the;
+		Word = grade;
+		Word = for;
+		Word = all
+	),!.
+is_word(X) :- (synonym(X,_); grade(X,_,_)),!.
+
 parse(Query,Result) :-
   splitter(Query,Noun,Adj,Restrictions),
   (
@@ -155,6 +166,8 @@ oldparse([who,has,the,Highest,grade,above,Number],Result) :-
 	synonym(Highest,highest),
 	highestGrade(Result,_,Grade),
 	Grade > Number.
+
+
 %
 % Stage A6 [5 points].  Same as above, but now if I say [...,for,girls]
 % it should restrict the search to girls.  If I say [...,for,a,students]
