@@ -41,6 +41,8 @@ same(smallest,worst).
 same(worst,icky-est).
 same(girl,girls).
 same(boy,boys).
+same(students,people).
+same(students,young-uns).
 transitive_same(X,Y,Z) :- (same(X,Y);same(Y,X)), \+ member(Y,Z).
 transitive_same(X,Y,Z) :- (same(X,Q);same(Q,X)), \+ member(Q,Z), transitive_same(Q,Y,[Q|Z]).
 synonym(X,Y) :- X = Y; transitive_same(X,Y,[X]).
@@ -58,41 +60,22 @@ is_word(X) :- (synonym(X,_); grade(X,_,_)),!.
 
 parse(Query,Result) :-
   splitter(Query,Noun,Adj,Restrictions),
-  (
-	Restrictions = [],
-	(
-	  (
-	    synonym(Noun,who),
-		(
-			synonym(Adj,highest),highest(_,_,Result);
-			synonym(Adj,lowest),lowest(_,_,Result)
-		)
-	  );
-	  (
-	    synonym(Noun,what),
-		(
-			synonym(Adj,highest),highest(Result,_,_);
-			synonym(Adj,lowest),lowest(Result,_,_)
-		)
-	  )
-	);
-	(
-	  grade(Person,Gender,Grade),
-	  maplist(satisfies(Person,Gender,Grade),Restrictions),
-	  forall(
-		maplist(satisfies(_,_,OtherGrade),Restrictions),
-		( synonym(Adj,highest), Grade >= OtherGrade;
-		  synonym(Adj,lowest),  Grade =< OtherGrade)
-	  ),
-	  ( synonym(Noun,who),  Result = Person;
-		synonym(Noun,what), Result = Grade)
-	)
-  ),!.
+  grade(Person,Gender,Grade),
+  maplist(satisfies(Person,Gender,Grade),Restrictions),
+  forall(
+    maplist(satisfies(_,_,OtherGrade),Restrictions),
+    ( synonym(Adj,highest), Grade >= OtherGrade;
+      synonym(Adj,lowest), Grade =< OtherGrade)
+  ),
+  ( synonym(Noun,who),  Result = Person;
+    synonym(Noun,what), Result = Grade).
 
-splitter([],Noun,Adj,[[]]) :- atom(Noun), atom(Adj).
-splitter([H|T],H,Adj,Restrictions) :- is_subject(H), splitter(T,H,Adj,Restrictions), !.
-splitter([H|T],Noun,H,Restrictions) :- is_adj(H), splitter(T,Noun,H,Restrictions), !.
-splitter([H1,H2|T],Noun,Adj,[[H1,H2]|Restrictions]) :-
+splitter([],Noun,Adj,[[]]) :- atom(Noun), atom(Adj). % see comment in satisfies/4 for double nested list
+splitter([H|T],Noun,Adj,Restrictions) :- \+atom(Noun), is_subject(H), splitter(T,H,Adj,Restrictions), Noun = H, !.
+splitter([H,Object|T],Noun,H,Restrictions) :- is_adj(H), synonym(Object,grade), splitter([Object|T],Noun,H,Restrictions), !.
+splitter([Object,H1,H2|T],Noun,Adj,[[H1,H2]|Restrictions]) :- % first restriction clause
+  synonym(Object,grade), is_restriction(H1,H2), splitter(T,Noun,Adj,Restrictions).
+splitter([who,are,H1,H2|T],Noun,Adj,[[H1,H2]|Restrictions]) :- % all other restrictions clauses
   is_restriction(H1,H2), splitter(T,Noun,Adj,Restrictions), !.
 splitter([_|T],Noun,Adj,Restrictions) :- splitter(T,Noun,Adj,Restrictions), !.
 
@@ -100,17 +83,36 @@ is_subject(X) :- member(X,[who,what]).
 is_adj(X) :- synonym(X,lowest); synonym(X,highest).
 is_gender(X) :- synonym(X,boys); synonym(X,girls).
 is_restriction(X,Y) :- synonym(X,for), is_gender(Y).
-is_restriction(X,Y) :- (synonym(X,below);synonym(X,above)), (grade(Y,_,_);number(Y)).
+is_restriction(X,Y) :- (synonym(X,below); synonym(X,above)), (grade(Y,_,_); number(Y)).
+is_restriction(X,Y) :- synonym(Y,students), letter_grade(X,_,_).
+
+letter_grade(a,90,101).
+letter_grade(b,80,90).
+letter_grade(c,70,80).
+letter_grade(d,60,70).
+letter_grade(f,0,60).
+
 
 satisfies(Per,Gen,Gra,[]) :- grade(Per,Gen,Gra). % otherwise maplist doesn't bind the value
 satisfies(Per,Gen,Gra,[For,Gender]) :- synonym(For,for), synonym(Gen,Gender), grade(Per,Gen,Gra).
 satisfies(Per,Gen,Gra,[Prep,Clause]) :-
-  ( synonym(Prep,for), synonym(Gen,Clause), grade(Per,Gen,_);
-    grade(Per,Gen,Gra),
-    ( number(Clause), Grade is Clause;
-      grade(Clause,_,Grade)),
-    ( synonym(Prep,above), Gra > Grade;
-      synonym(Prep,below), Gra < Grade)).
+  grade(Per,Gen,Gra),
+  ( 
+    ( % 'for girls'
+      synonym(Prep,for), synonym(Gen,Clause), grade(Per,Gen,_)
+    );
+    (
+      ( number(Clause), Grade is Clause;  % 'above 87'
+        grade(Clause,_,Grade)),           % 'below mike'
+      ( synonym(Prep,above), Gra > Grade;
+        synonym(Prep,below), Gra < Grade)
+    );
+    ( % 'b students'
+      Clause = students, 
+      letter_grade(Prep,LowerBound,UpperBound),
+      Gra >= LowerBound, Gra < UpperBound
+    )
+  ).
 
 % Stage A2 [5 points].  Modify the code so that it will also return
 % the lowest grade.
@@ -128,46 +130,6 @@ satisfies(Per,Gen,Gra,[Prep,Clause]) :-
 % search to grades above 82.  If If I say [...,above,mike] and mike is
 % a name in the db, it should restrict the grades to grades above that
 % student's grade.
-
-oldparse([who,has,the,Lowest,grade,above,Number],Result) :-
-	number(Number),
-	synonym(Lowest,lowest),
-	grade(Result,_,Grade),
-	Grade > Number,
-	forall(
-		grade(_,_,OtherGrade),
-		(
-			Grade >= OtherGrade;
-			OtherGrade =< Number
-		)
-	).
-
-oldparse([who,has,the,Lowest,grade,below,Number],Result) :-
-	number(Number),
-	synonym(Lowest),
-	lowestGrade(Result,_,Grade),
-	Grade < Number.
-
-oldparse([who,has,the,Highest,grade,below,Number],Result) :-
-	number(Number),
-	synonym(Highest,highest),
-	grade(Result,_,Grade),
-	Grade < Number,
-	forall(
-		grade(_,_,OtherGrade),
-		(
-			Grade >= OtherGrade;
-			OtherGrade >= Number
-		)
-	).
-
-oldparse([who,has,the,Highest,grade,above,Number],Result) :-
-	number(Number),
-	synonym(Highest,highest),
-	highestGrade(Result,_,Grade),
-	Grade > Number.
-
-
 %
 % Stage A6 [5 points].  Same as above, but now if I say [...,for,girls]
 % it should restrict the search to girls.  If I say [...,for,a,students]
@@ -214,14 +176,17 @@ oldparse([who,has,the,Highest,grade,above,Number],Result) :-
 %
 get_string(X) :- get_string_helper(Y), string_codes(X,Y).
 get_string_helper(X) :- get_code(Y),(Y = 10,X = []; get_string_helper(Z), X = [Y|Z]), !.
-get_words(Z) :- get_string(Y), atomic_list_concat(X,' ',Y), maplist(downcase_atom,X,Z).
+get_words(Q) :- get_string(Y), atomic_list_concat(X,' ',Y), maplist(downcase_atom,X,Z), maplist(numerize,Z,Q).
+
+numerize(X,Y) :- atom_number(X,Y), !.
+numerize(X,X).
 
 do_nlp(Start) :-
-	get_words(Words),
-	parse(Words,Result),
-	write(Result),
-	write('\n'),
-	do_nlp(Start).
+  get_words(Words),
+  parse(Words,Result),
+  write(Result),
+  write('\n'),
+  do_nlp(Start).
 
 % Stage C [30 points]: Improved parsing
 %
