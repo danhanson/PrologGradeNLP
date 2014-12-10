@@ -59,6 +59,12 @@ parse(Query,Result) :-
   ( synonym(Noun,who),  Result = Person;
     synonym(Noun,what), Result = Grade).
 
+% all restrictions are two words, but 'for A students' is 3 words so we remove the 'for'
+% for consistency
+normalize_restrictions([],[]).
+normalize_restrictions([for,X,students|T1],[X,students|T2]) :- normalize_restrictions(T1,T2), !.
+normalize_restrictions([H|T1],[H|T2]) :- normalize_restrictions(T1,T2).
+
 splitter([],Noun,Adj,[[]]) :- atom(Noun), atom(Adj). % see comment in satisfies/4 for double nested list
 splitter([H|T],Noun,Adj,Restrictions) :- \+atom(Noun), is_subject(H), splitter(T,H,Adj,Restrictions), Noun = H, !.
 splitter([H,Object|T],Noun,H,Restrictions) :- is_adj(H), synonym(Object,grade), splitter([Object|T],Noun,H,Restrictions), !.
