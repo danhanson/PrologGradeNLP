@@ -43,6 +43,7 @@ same(girl,girls).
 same(boy,boys).
 same(students,people).
 same(students,young-uns).
+same(a,some).
 transitive_same(X,Y,Z) :- (same(X,Y);same(Y,X)), \+ member(Y,Z).
 transitive_same(X,Y,Z) :- (same(X,Q);same(Q,X)), \+ member(Q,Z), transitive_same(Q,Y,[Q|Z]).
 synonym(X,Y) :- X = Y; transitive_same(X,Y,[X]).
@@ -65,7 +66,9 @@ parse(Query,Result) :-
   forall(
     maplist(satisfies(_,_,OtherGrade),Restrictions),
     ( synonym(Adj,highest), Grade >= OtherGrade;
-      synonym(Adj,lowest), Grade =< OtherGrade)
+      synonym(Adj,lowest),  Grade =< OtherGrade;
+      synonym(Adj,some))
+
   ),
   ( synonym(Noun,who),  Result = Person;
     synonym(Noun,what), Result = Grade).
@@ -86,7 +89,7 @@ splitter([who,are,H1,H2|T],Noun,Adj,[[H1,H2]|Restrictions]) :- % all other restr
 splitter([_|T],Noun,Adj,Restrictions) :- splitter(T,Noun,Adj,Restrictions), !.
 
 is_subject(X) :- member(X,[who,what]).
-is_adj(X) :- synonym(X,lowest); synonym(X,highest).
+is_adj(X) :- synonym(X,lowest); synonym(X,highest); synonym(X,some).
 is_gender(X) :- synonym(X,boys); synonym(X,girls).
 is_restriction(X,Y) :- synonym(X,for), is_gender(Y).
 is_restriction(X,Y) :- (synonym(X,below); synonym(X,above)), (grade(Y,_,_); number(Y)).
@@ -209,3 +212,12 @@ do_nlp(Start) :-
 % of new questions you support and any other features you added.
 
 
+% Feature 1: Who has a grade above mike? -> steve anne sally cathy
+%            Who has a grade below 97? -> sally mike cathy
+
+
+% Feature 2: How many students have a grade above 85?
+%            How many students have the highest grade below 95?
+
+
+% Feature 3: TBD
