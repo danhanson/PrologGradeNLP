@@ -70,6 +70,9 @@ is_word(Word) :-
 ),!.
 is_word(X) :- (synonym(X,_); grade(X,_,_)),!.
 
+parse([count,the,number,of|T],Result) :-
+  parse([how,many|T],Result).
+
 parse([how,Many|T],Result) :-
   synonym(Many,many),
   (
@@ -178,6 +181,9 @@ restrictions(T,[Restriction|Restrictions]) :-
 	is_restriction(T,Restriction,T2),restrictions(T2,Restrictions).
 
 restrictions([for|T],[Restriction|Restrictions]) :-
+	is_restriction(T,Restriction,T2),restrictions(T2,Restrictions).
+
+restrictions([and|T],[Restriction|Restrictions]) :-
 	is_restriction(T,Restriction,T2),restrictions(T2,Restrictions).
 
 restrictions([with|T],[Restriction|Restrictions]) :-
