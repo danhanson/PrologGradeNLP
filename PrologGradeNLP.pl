@@ -47,7 +47,6 @@ same(men,boys).
 same(women,girls).
 same(have,has).
 same(are,is).
-same([people,who,are,girls],girls).
 same(student,students).
 same(students,people).
 same(students,young-uns).
@@ -58,17 +57,6 @@ same(who,which).
 transitive_same(X,Y,Z) :- (same(X,Y);same(Y,X)), \+ member(Y,Z).
 transitive_same(X,Y,Z) :- (same(X,Q);same(Q,X)), \+ member(Q,Z), transitive_same(Q,Y,[Q|Z]).
 synonym(X,Y) :- X = Y; transitive_same(X,Y,[X]).
-
-is_word(Word) :-
-(
-  Word = who;
-  Word = has;
-  Word = the;
-  Word = grade;
-  Word = for;
-  Word = all
-),!.
-is_word(X) :- (synonym(X,_); grade(X,_,_)),!.
 
 parse([count,the,number,of|T],Result) :-
   parse([count,the|T],Result).
@@ -98,9 +86,16 @@ parse([how,Many|T],Result) :-
   list_to_set(List,Set),
   length(Set,Result),!.
 
+
 parse(Query,Result) :-
   splitter(Query,Subject,_,Adj,Noun,Restrictions),
   (
+    (
+      synonym(Noun,grade),
+      synonym(Adj,average),
+      aggregate_all(bag(G),maplist(satisfies(_,_,G),Restrictions),AllG),
+      average(AllG,Grade)
+    );
     (
       synonym(Noun,grade),
       grade(Person,Gender,Grade),
@@ -113,29 +108,29 @@ parse(Query,Result) :-
         )
       )
     );
-	  (
-	    is_gender(Noun),
-	  	grade(Person,Gender,Grade),
-	  	maplist(satisfies(Person,Gender,Grade),[[Noun]|Restrictions])
-	  )
+    (
+      is_gender(Noun),
+      grade(Person,Gender,Grade),
+      maplist(satisfies(Person,Gender,Grade),[[Noun]|Restrictions])
+    )
   ),
   ( synonym(Subject,who),  Result = Person;
     synonym(Subject,what), Result = Grade).
 
 splitter(List,Subject,Verb,Adj,Noun,Restrictions) :-
-	subject(List,Subject,T),
-	verb(T,Verb,T2),
-	article(T2,_,T3),
-	adjective(T3,Adj,T4),
-	noun(T4,Noun,T5),
-	restrictions(T5,Restrictions).
+  subject(List,Subject,T),
+  verb(T,Verb,T2),
+  article(T2,_,T3),
+  adjective(T3,Adj,T4),
+  noun(T4,Noun,T5),
+  restrictions(T5,Restrictions).
 
 splitter(List,Subject,Verb,_,Noun,Restrictions) :-
-	subject(List,Subject,T),
-	verb(T,Verb,T2),
-	article(T2,_,T3),
-	noun(T3,Noun,T4),
-	restrictions(T4,Restrictions).
+  subject(List,Subject,T),
+  verb(T,Verb,T2),
+  article(T2,_,T3),
+  noun(T3,Noun,T4),
+  restrictions(T4,Restrictions).
 
 splitter(List,Subject,Verb,_,Noun,Restrictions) :-
   subject(List,Subject,T),
@@ -171,6 +166,8 @@ adjective([Highest|T],highest,T) :- synonym(Highest,highest).
 
 adjective([Lowest|T],lowest,T) :- synonym(Lowest,lowest).
 
+adjective([Average|T],average,T) :- synonym(Average,average).
+
 noun([Grade|T],grade,T) :- synonym(Grade,grade).
 
 noun([Gender|T],Gender,T) :- is_gender(Gender).
@@ -186,21 +183,21 @@ noun(Student) :- synonym(Student,student).
 restrictions([],[[]]).
 
 restrictions(T,[Restriction|Restrictions]) :-
-	is_restriction(T,Restriction,T2),restrictions(T2,Restrictions).
+  is_restriction(T,Restriction,T2),restrictions(T2,Restrictions).
 
 restrictions([for|T],[Restriction|Restrictions]) :-
-	is_restriction(T,Restriction,T2),restrictions(T2,Restrictions).
+  is_restriction(T,Restriction,T2),restrictions(T2,Restrictions).
 
 restrictions([and|T],[Restriction|Restrictions]) :-
-	is_restriction(T,Restriction,T2),restrictions(T2,Restrictions).
+  is_restriction(T,Restriction,T2),restrictions(T2,Restrictions).
 
 restrictions([with|T],[Restriction|Restrictions]) :-
-	is_restriction(T,Restriction,T2),restrictions(T2,Restrictions).
+  is_restriction(T,Restriction,T2),restrictions(T2,Restrictions).
 
 restrictions([Who,Are|T],[Restriction|Restrictions]) :-
   synonym(Are,are),
   (synonym(Who,who);synonym(Who,and)),
-	is_restriction(T,Restriction,T2),restrictions(T2,Restrictions).
+  is_restriction(T,Restriction,T2),restrictions(T2,Restrictions).
 
 is_gender(X) :- synonym(X,boys); synonym(X,girls).
 
@@ -242,6 +239,8 @@ satisfies(Per,Gen,Gra,[Letter,Students|Tail]) :-
   letter_grade(Letter,Bot,Top),
   satisfies(Per,Gen,Gra,Tail),
   Gra >= Bot, Gra < Top.
+
+average(L,X) :- length(L,S), sumlist(L,T), X is T / S.
 
 % Stage A2 [5 points].  Modify the code so that it will also return
 % the lowest grade.
