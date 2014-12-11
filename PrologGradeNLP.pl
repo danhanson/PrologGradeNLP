@@ -91,9 +91,6 @@ splitter(List,Subject,Verb,Adj,Noun,Restrictions) :-
 	noun(T4,Noun,T5),
 	restrictions(T5,Restrictions).
 
-splitter(List,Subject,Verb,Adj,Noun,Restrictions) :-
-  
-
 subject([who|T],who,T).
 
 subject([What,Student|T],who,T) :- synonym(What,what), synonym(Student,student).
