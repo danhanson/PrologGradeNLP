@@ -71,7 +71,17 @@ is_word(Word) :-
 is_word(X) :- (synonym(X,_); grade(X,_,_)),!.
 
 parse([count,the,number,of|T],Result) :-
-  parse([how,many|T],Result).
+  parse([count,the|T],Result).
+
+parse([count,the,Nouns],Result) :-
+  parse([how,many,Nouns],Result).
+
+parse([count,the,Nouns,Who|T],Result) :-
+  (synonym(Who,who);synonym(Who,that)),
+  parse([how,many,Nouns|T],Result).
+
+parse([how,Many,Nouns],Result) :-
+  parse([how,Many,Nouns,are,Nouns],Result),!.
 
 parse([how,Many|T],Result) :-
   synonym(Many,many),
@@ -103,16 +113,14 @@ parse(Query,Result) :-
         )
       )
     );
-	(
-		is_gender(Noun),
-		grade(Person,Gender,Grade),
-		maplist(satisfies(Person,Gender,Grade),[[Noun]|Restrictions])
-	)
+	  (
+	    is_gender(Noun),
+	  	grade(Person,Gender,Grade),
+	  	maplist(satisfies(Person,Gender,Grade),[[Noun]|Restrictions])
+	  )
   ),
   ( synonym(Subject,who),  Result = Person;
     synonym(Subject,what), Result = Grade).
-
-splitter([Adj,Gra|T],Noun,Adj,Restrictions) :- is_adj(Adj), synonym(Gra,grade), splitter([Gra|T],Noun,Adj,Restrictions),!.
 
 splitter(List,Subject,Verb,Adj,Noun,Restrictions) :-
 	subject(List,Subject,T),
