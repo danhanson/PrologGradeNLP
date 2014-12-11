@@ -220,8 +220,9 @@ satisfies(Per,Gen,Gra,[Letter,Students|Tail]) :-
 % get_char.  Make sure your input ignores it or your 2nd parse may be messed
 % up.
 %
+
 get_string(X) :- get_string_helper(Y), string_codes(X,Y).
-get_string_helper(X) :- get_code(Y),(Y = 63,get_code(10),X = []; get_string_helper(Z), X = [Y|Z]), !.
+get_string_helper(X) :- get_code(Y),(Y = 63,get_code(10),X = []; Y = 10,get_string_helper(X); get_string_helper(Z), X = [Y|Z]), !.
 get_words(Q) :- get_string(Y), atomic_list_concat(X,' ',Y), maplist(downcase_atom,X,Z), maplist(numerize,Z,Q).
 
 numerize(X,Y) :- atom_number(X,Y), !.
