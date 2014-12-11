@@ -44,6 +44,7 @@ same(boy,boys).
 same(students,people).
 same(students,young-uns).
 same(a,some).
+same(many,count).
 transitive_same(X,Y,Z) :- (same(X,Y);same(Y,X)), \+ member(Y,Z).
 transitive_same(X,Y,Z) :- (same(X,Q);same(Q,X)), \+ member(Q,Z), transitive_same(Q,Y,[Q|Z]).
 synonym(X,Y) :- X = Y; transitive_same(X,Y,[X]).
@@ -68,10 +69,15 @@ parse(Query,Result) :-
     ( synonym(Adj,highest), Grade >= OtherGrade;
       synonym(Adj,lowest),  Grade =< OtherGrade;
       synonym(Adj,some))
-
   ),
   ( synonym(Noun,who),  Result = Person;
-    synonym(Noun,what), Result = Grade).
+    synonym(Noun,what), Result = Grade ;
+    synonym(Noun,many), singularize(Query,Q2), aggregate_all(count,parse(Q2,_),Result)).
+
+singularize([],[]).
+singularize([H1|T1],[who|T2]) :- synonym(H1,many), singularize(T1,T2), !.
+singularize([H1|T1],[H1|T2]) :- singularize(T1,T2).
+
 
 % all restrictions are two words, but 'for A students' is 3 words so we remove the 'for'
 % for consistency
@@ -88,7 +94,7 @@ splitter([who,are,H1,H2|T],Noun,Adj,[[H1,H2]|Restrictions]) :- % all other restr
   is_restriction(H1,H2), splitter(T,Noun,Adj,Restrictions), !.
 splitter([_|T],Noun,Adj,Restrictions) :- splitter(T,Noun,Adj,Restrictions), !.
 
-is_subject(X) :- member(X,[who,what]).
+is_subject(X) :- member(X,[who,what,many,count]).
 is_adj(X) :- synonym(X,lowest); synonym(X,highest); synonym(X,some).
 is_gender(X) :- synonym(X,boys); synonym(X,girls).
 is_restriction(X,Y) :- synonym(X,for), is_gender(Y).
