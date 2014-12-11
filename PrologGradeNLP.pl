@@ -92,6 +92,7 @@ parse(Query,Result) :-
   (
     (
       synonym(Noun,grade),
+	  atom(Adj),
       synonym(Adj,average),
       aggregate_all(bag(G),maplist(satisfies(_,_,G),Restrictions),AllG),
       average(AllG,Grade)
