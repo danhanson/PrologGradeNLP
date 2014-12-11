@@ -44,7 +44,6 @@ same(boy,boys).
 same(guys,boys).
 same(men,boys).
 same(women,girls).
-same([people,who,are,girls],girls).
 same(students,people).
 same(students,young-uns).
 same(a,some).
@@ -87,18 +86,13 @@ splitter([who,are,H1,H2|T],Noun,Adj,[[H1,H2]|Restrictions]) :- % all other restr
   is_restriction(H1,H2), splitter(T,Noun,Adj,Restrictions), !.
 splitter([_|T],Noun,Adj,Restrictions) :- splitter(T,Noun,Adj,Restrictions), !.
 
+
 is_subject(X) :- member(X,[who,what,many,count]).
 is_adj(X) :- synonym(X,lowest); synonym(X,highest); synonym(X,some).
-
 is_gender(X) :- synonym(X,boys); synonym(X,girls).
-
-is_restriction([Gender|Tail],[Gender],Tail) :- is_gender(Gender).
-is_restriction([Gender|Tail],[Gender],Tail) :- is_gender(Gender).
-is_restriction([Letter,Students|Tail],[Letter,students],Tail) :- synonym(Students,students),letter_grade(Letter,_,_).
-is_restriction([Above,Grade|Tail],[above,Grade],Tail) :- synonym(Above,above), number(Grade).
-is_restriction([Below,Grade|Tail],[below,Grade],Tail) :- synonym(Below,below), number(Grade).
-is_restriction([Above,Student|Tail],[above,Grade],Tail) :- synonym(Above,above), grade(Student,_,Grade).
-is_restriction([Below,Student|Tail],[below,Grade],Tail) :- synonym(Below,below), grade(Student,_,Grade).
+is_restriction(X,Y) :- synonym(X,for), is_gender(Y).
+is_restriction(X,Y) :- (synonym(X,below); synonym(X,above)), (grade(Y,_,_); number(Y)).
+is_restriction(X,Y) :- synonym(Y,students), letter_grade(X,_,_).
 
 
 letter_grade(a,90,101).
@@ -108,28 +102,25 @@ letter_grade(d,60,70).
 letter_grade(f,0,60).
 
 satisfies(Per,Gen,Gra,[]) :- grade(Per,Gen,Gra). % otherwise maplist doesn't bind the value
-
-satisfies(Per,Gen,Gra,[Gender|Tail]) :-
-  synonym(Gen,Gender),
-  satisfies(Per,Gen,Gra,Tail).
-
-satisfies(Per,Gen,Gra,[Above,Number|Tail]) :-
-  synonym(Above,above),
-  number(Number),
-  satisfies(Per,Gen,Gra,Tail),
-  Gra > Number.
-
-satisfies(Per,Gen,Gra,[Below,Number|Tail]) :-
-  synonym(Below,below),
-  number(Number),
-  satisfies(Per,Gen,Gra,Tail),
-  Gra < Number.
-
-satisfies(Per,Gen,Gra,[Letter,Students|Tail]) :-
-  synonym(Students,students),
-  letter_grade(Letter,Bot,Top),
-  satisfies(Per,Gen,Gra,Tail),
-  Gra >= Bot, Gra < Top.
+satisfies(Per,Gen,Gra,[For,Gender]) :- synonym(For,for), synonym(Gen,Gender), grade(Per,Gen,Gra).
+satisfies(Per,Gen,Gra,[Prep,Clause]) :-
+  grade(Per,Gen,Gra),
+  ( 
+    ( % 'for girls'
+      synonym(Prep,for), synonym(Gen,Clause), grade(Per,Gen,_)
+    );
+    (
+      ( number(Clause), Grade is Clause;  % 'above 87'
+        grade(Clause,_,Grade)),           % 'below mike'
+      ( synonym(Prep,above), Gra > Grade;
+        synonym(Prep,below), Gra < Grade)
+    );
+    ( % 'b students'
+      Clause = students, 
+      letter_grade(Prep,LowerBound,UpperBound),
+      Gra >= LowerBound, Gra < UpperBound
+    )
+  ).
 
 
 
