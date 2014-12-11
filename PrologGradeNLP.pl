@@ -41,6 +41,10 @@ same(smallest,worst).
 same(worst,icky-est).
 same(girl,girls).
 same(boy,boys).
+same(guys,boys).
+same(men,boys).
+same(women,girls).
+same([people,who,are,girls],girls).
 same(students,people).
 same(students,young-uns).
 same(a,some).
@@ -48,17 +52,6 @@ same(many,count).
 transitive_same(X,Y,Z) :- (same(X,Y);same(Y,X)), \+ member(Y,Z).
 transitive_same(X,Y,Z) :- (same(X,Q);same(Q,X)), \+ member(Q,Z), transitive_same(Q,Y,[Q|Z]).
 synonym(X,Y) :- X = Y; transitive_same(X,Y,[X]).
-
-is_word(Word) :-
-(
-  Word = who;
-  Word = has;
-  Word = the;
-  Word = grade;
-  Word = for;
-  Word = all
-),!.
-is_word(X) :- (synonym(X,_); grade(X,_,_)),!.
 
 parse(Query,Result) :-
   splitter(Query,Noun,Adj,Restrictions),
@@ -101,6 +94,7 @@ is_restriction(X,Y) :- synonym(X,for), is_gender(Y).
 is_restriction(X,Y) :- (synonym(X,below); synonym(X,above)), (grade(Y,_,_); number(Y)).
 is_restriction(X,Y) :- synonym(Y,students), letter_grade(X,_,_).
 
+
 letter_grade(a,90,101).
 letter_grade(b,80,90).
 letter_grade(c,70,80).
@@ -128,6 +122,8 @@ satisfies(Per,Gen,Gra,[Prep,Clause]) :-
       Gra >= LowerBound, Gra < UpperBound
     )
   ).
+
+
 
 % Stage A2 [5 points].  Modify the code so that it will also return
 % the lowest grade.
@@ -189,8 +185,9 @@ satisfies(Per,Gen,Gra,[Prep,Clause]) :-
 % get_char.  Make sure your input ignores it or your 2nd parse may be messed
 % up.
 %
+
 get_string(X) :- get_string_helper(Y), string_codes(X,Y).
-get_string_helper(X) :- get_code(Y),(Y = 63,get_code(10),X = []; get_string_helper(Z), X = [Y|Z]), !.
+get_string_helper(X) :- get_code(Y),(Y = 63,get_code(10),X = []; Y = 10,get_string_helper(X); get_string_helper(Z), X = [Y|Z]), !.
 get_words(Q) :- get_string(Y), atomic_list_concat(X,' ',Y), maplist(downcase_atom,X,Z), maplist(numerize,Z,Q).
 
 numerize(X,Y) :- atom_number(X,Y), !.
@@ -200,10 +197,18 @@ writeln(X) :- write(X),write('\n').
 
 do_nlp(Start) :-
   get_words(Words),
-  findall(Result,parse(Words,Result),Results),
-  list_to_set(Results,UniqueResults),
-  maplist(writeln,UniqueResults),
-  do_nlp(Start).
+  (
+    member(done,Words),!;
+    (
+      findall(Result,parse(Words,Result),Results),
+      list_to_set(Results,UniqueResults),
+      (
+        length(Results,0),writeln(none);
+        maplist(writeln,UniqueResults)
+      ),
+      do_nlp(Start)
+    )
+  ),!.
 
 % Stage C [30 points]: Improved parsing
 %
@@ -222,8 +227,8 @@ do_nlp(Start) :-
 %            Who has a grade below 97? -> sally mike cathy
 
 
-% Feature 2: How many students have a grade above 85?
-%            How many students have the highest grade below 95?
+% Feature 2: How many students have a grade above 85? -> 3
+%            How many students have the highest grade below 95 for girls? -> 1
 
 
-% Feature 3: TBD
+% Feature 3: What is the average grade above sally?
