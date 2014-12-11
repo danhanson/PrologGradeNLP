@@ -93,7 +93,9 @@ splitter(List,Subject,Verb,Adj,Noun,Restrictions) :-
 
 subject([who|T],who,T).
 
-subject([What,Student|T],who,T) :- synonym(What,what), synonym(Student,student).
+subject([what,Student|T],who,T) :- synonym(What,what), synonym(Student,student).
+
+subject([Which,Student|T],who,T) :- synonym(Which,which), synonym(Student,student).
 
 subject([What|T],what,T) :- synonym(What,what).
 
