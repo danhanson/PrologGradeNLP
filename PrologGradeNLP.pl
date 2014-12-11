@@ -41,6 +41,10 @@ same(smallest,worst).
 same(worst,icky-est).
 same(girl,girls).
 same(boy,boys).
+same(guys,boys).
+same(men,boys).
+same(women,girls).
+same([people,who,are,girls],girls).
 same(students,people).
 same(students,young-uns).
 transitive_same(X,Y,Z) :- (same(X,Y);same(Y,X)), \+ member(Y,Z).
@@ -59,38 +63,72 @@ is_word(Word) :-
 is_word(X) :- (synonym(X,_); grade(X,_,_)),!.
 
 parse(Query,Result) :-
-  splitter(Query,Noun,Adj,Restrictions),
-  grade(Person,Gender,Grade),
-  maplist(satisfies(Person,Gender,Grade),Restrictions),
-  forall(
-    maplist(satisfies(_,_,OtherGrade),Restrictions),
-    ( synonym(Adj,highest), Grade >= OtherGrade;
-      synonym(Adj,lowest), Grade =< OtherGrade)
+  splitter(Query,Subject,_,Adj,Noun,Restrictions),
+  (
+    (
+      synonym(Noun,grade),
+      grade(Person,Gender,Grade),
+      maplist(satisfies(Person,Gender,Grade),Restrictions),
+      forall(
+        maplist(satisfies(_,_,OtherGrade),Restrictions),
+        (
+          synonym(Adj,highest), Grade >= OtherGrade;
+          synonym(Adj,lowest), Grade =< OtherGrade
+        )
+      )
+    )
   ),
-  ( synonym(Noun,who),  Result = Person;
-    synonym(Noun,what), Result = Grade).
+  ( synonym(Subject,who),  Result = Person;
+    synonym(Subject,what), Result = Grade).
 
-% all restrictions are two words, but 'for A students' is 3 words so we remove the 'for'
-% for consistency
-normalize_restrictions([],[]).
-normalize_restrictions([for,X,students|T1],[X,students|T2]) :- normalize_restrictions(T1,T2), !.
-normalize_restrictions([H|T1],[H|T2]) :- normalize_restrictions(T1,T2).
+splitter([Adj,Gra|T],Noun,Adj,Restrictions) :- is_adj(Adj), synonym(Gra,grade), splitter([Gra|T],Noun,Adj,Restrictions),!.
 
-splitter([],Noun,Adj,[[]]) :- atom(Noun), atom(Adj). % see comment in satisfies/4 for double nested list
-splitter([H|T],Noun,Adj,Restrictions) :- \+atom(Noun), is_subject(H), splitter(T,H,Adj,Restrictions), Noun = H, !.
-splitter([H,Object|T],Noun,H,Restrictions) :- is_adj(H), synonym(Object,grade), splitter([Object|T],Noun,H,Restrictions), !.
-splitter([Object,H1,H2|T],Noun,Adj,[[H1,H2]|Restrictions]) :- % first restriction clause
-  synonym(Object,grade), is_restriction(H1,H2), splitter(T,Noun,Adj,Restrictions).
-splitter([who,are,H1,H2|T],Noun,Adj,[[H1,H2]|Restrictions]) :- % all other restrictions clauses
-  is_restriction(H1,H2), splitter(T,Noun,Adj,Restrictions), !.
-splitter([_|T],Noun,Adj,Restrictions) :- splitter(T,Noun,Adj,Restrictions), !.
+splitter(List,Subject,Verb,Adj,Noun,Restrictions) :-
+	subject(List,Subject,T),
+	verb(T,Verb,T2),
+	article(T2,_,T3),
+	adjective(T3,Adj,T4),
+	noun(T4,Noun,T5),
+	restrictions(T5,Restrictions).
 
-is_subject(X) :- member(X,[who,what]).
-is_adj(X) :- synonym(X,lowest); synonym(X,highest).
+subject([who|T],who,T).
+
+subject([What,Student|T],who,T) :- synonym(What,what), synonym(Student,student).
+
+subject([What|T],what,T) :- synonym(What,what).
+
+verb([Is|T],is,T) :- synonym(Is,is).
+
+verb([Has|T],has,T) :- synonym(Has,has).
+
+article([the|T],the,T).
+
+adjective([Highest|T],highest,T) :- synonym(Highest,highest).
+
+adjective([Lowest|T],lowest,T) :- synonym(Lowest,lowest).
+
+noun([Grade|T],grade,T) :- synonym(Grade,grade).
+
+restrictions([],[[]]).
+
+restrictions(T,[Restriction|Restrictions]) :-
+	is_restriction(T,Restriction,T2),restrictions(T2,Restrictions).
+
+restrictions([for|T],[Restriction|Restrictions]) :-
+	is_restriction(T,Restriction,T2),restrictions(T2,Restrictions).
+
+restrictions([who,are|T],[Restriction|Restrictions]) :-
+	is_restriction(T,Restriction,T2),restrictions(T2,Restrictions).
+
 is_gender(X) :- synonym(X,boys); synonym(X,girls).
-is_restriction(X,Y) :- synonym(X,for), is_gender(Y).
-is_restriction(X,Y) :- (synonym(X,below); synonym(X,above)), (grade(Y,_,_); number(Y)).
-is_restriction(X,Y) :- synonym(Y,students), letter_grade(X,_,_).
+
+is_restriction([Gender|Tail],[Gender],Tail) :- is_gender(Gender).
+is_restriction([Gender|Tail],[Gender],Tail) :- is_gender(Gender).
+is_restriction([Letter,Students|Tail],[Letter,students],Tail) :- synonym(Students,students),letter_grade(Letter,_,_).
+is_restriction([Above,Grade|Tail],[above,Grade],Tail) :- synonym(Above,above), number(Grade).
+is_restriction([Below,Grade|Tail],[below,Grade],Tail) :- synonym(Below,below), number(Grade).
+is_restriction([Above,Student|Tail],[above,Grade],Tail) :- synonym(Above,above), grade(Student,_,Grade).
+is_restriction([Below,Student|Tail],[below,Grade],Tail) :- synonym(Below,below), grade(Student,_,Grade).
 
 letter_grade(a,90,101).
 letter_grade(b,80,90).
@@ -98,27 +136,29 @@ letter_grade(c,70,80).
 letter_grade(d,60,70).
 letter_grade(f,0,60).
 
-
 satisfies(Per,Gen,Gra,[]) :- grade(Per,Gen,Gra). % otherwise maplist doesn't bind the value
-satisfies(Per,Gen,Gra,[For,Gender]) :- synonym(For,for), synonym(Gen,Gender), grade(Per,Gen,Gra).
-satisfies(Per,Gen,Gra,[Prep,Clause]) :-
-  grade(Per,Gen,Gra),
-  ( 
-    ( % 'for girls'
-      synonym(Prep,for), synonym(Gen,Clause), grade(Per,Gen,_)
-    );
-    (
-      ( number(Clause), Grade is Clause;  % 'above 87'
-        grade(Clause,_,Grade)),           % 'below mike'
-      ( synonym(Prep,above), Gra > Grade;
-        synonym(Prep,below), Gra < Grade)
-    );
-    ( % 'b students'
-      Clause = students, 
-      letter_grade(Prep,LowerBound,UpperBound),
-      Gra >= LowerBound, Gra < UpperBound
-    )
-  ).
+
+satisfies(Per,Gen,Gra,[Gender|Tail]) :-
+  synonym(Gen,Gender),
+  satisfies(Per,Gen,Gra,Tail).
+
+satisfies(Per,Gen,Gra,[Above,Number|Tail]) :-
+  synonym(Above,above),
+  number(Number),
+  satisfies(Per,Gen,Gra,Tail),
+  Gra > Number.
+
+satisfies(Per,Gen,Gra,[Below,Number|Tail]) :-
+  synonym(Below,below),
+  number(Number),
+  satisfies(Per,Gen,Gra,Tail),
+  Gra < Number.
+
+satisfies(Per,Gen,Gra,[Letter,Students|Tail]) :-
+  synonym(Students,students),
+  letter_grade(Letter,Bot,Top),
+  satisfies(Per,Gen,Gra,Tail),
+  Gra >= Bot, Gra < Top.
 
 % Stage A2 [5 points].  Modify the code so that it will also return
 % the lowest grade.
@@ -191,10 +231,18 @@ writeln(X) :- write(X),write('\n').
 
 do_nlp(Start) :-
   get_words(Words),
-  findall(Result,parse(Words,Result),Results),
-  list_to_set(Results,UniqueResults),
-  maplist(writeln,UniqueResults),
-  do_nlp(Start).
+  (
+    member(done,Words),!;
+    (
+      findall(Result,parse(Words,Result),Results),
+      list_to_set(Results,UniqueResults),
+      (
+        length(Results,0),writeln(none);
+        maplist(writeln,UniqueResults)
+      ),
+      do_nlp(Start)
+    )
+  ),!.
 
 % Stage C [30 points]: Improved parsing
 %
