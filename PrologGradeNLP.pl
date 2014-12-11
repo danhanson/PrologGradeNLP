@@ -41,6 +41,10 @@ same(smallest,worst).
 same(worst,icky-est).
 same(girl,girls).
 same(boy,boys).
+same(guys,boys).
+same(men,boys).
+same(women,girls).
+same([people,who,are,girls],girls).
 same(students,people).
 same(students,young-uns).
 same(a,some).
@@ -96,10 +100,16 @@ splitter([_|T],Noun,Adj,Restrictions) :- splitter(T,Noun,Adj,Restrictions), !.
 
 is_subject(X) :- member(X,[who,what,many,count]).
 is_adj(X) :- synonym(X,lowest); synonym(X,highest); synonym(X,some).
+
 is_gender(X) :- synonym(X,boys); synonym(X,girls).
-is_restriction(X,Y) :- synonym(X,for), is_gender(Y).
-is_restriction(X,Y) :- (synonym(X,below); synonym(X,above)), (grade(Y,_,_); number(Y)).
-is_restriction(X,Y) :- synonym(Y,students), letter_grade(X,_,_).
+
+is_restriction([Gender|Tail],[Gender],Tail) :- is_gender(Gender).
+is_restriction([Gender|Tail],[Gender],Tail) :- is_gender(Gender).
+is_restriction([Letter,Students|Tail],[Letter,students],Tail) :- synonym(Students,students),letter_grade(Letter,_,_).
+is_restriction([Above,Grade|Tail],[above,Grade],Tail) :- synonym(Above,above), number(Grade).
+is_restriction([Below,Grade|Tail],[below,Grade],Tail) :- synonym(Below,below), number(Grade).
+is_restriction([Above,Student|Tail],[above,Grade],Tail) :- synonym(Above,above), grade(Student,_,Grade).
+is_restriction([Below,Student|Tail],[below,Grade],Tail) :- synonym(Below,below), grade(Student,_,Grade).
 
 letter_grade(a,90,101).
 letter_grade(b,80,90).
@@ -107,27 +117,29 @@ letter_grade(c,70,80).
 letter_grade(d,60,70).
 letter_grade(f,0,60).
 
-
 satisfies(Per,Gen,Gra,[]) :- grade(Per,Gen,Gra). % otherwise maplist doesn't bind the value
-satisfies(Per,Gen,Gra,[For,Gender]) :- synonym(For,for), synonym(Gen,Gender), grade(Per,Gen,Gra).
-satisfies(Per,Gen,Gra,[Prep,Clause]) :-
-  grade(Per,Gen,Gra),
-  ( 
-    ( % 'for girls'
-      synonym(Prep,for), synonym(Gen,Clause), grade(Per,Gen,_)
-    );
-    (
-      ( number(Clause), Grade is Clause;  % 'above 87'
-        grade(Clause,_,Grade)),           % 'below mike'
-      ( synonym(Prep,above), Gra > Grade;
-        synonym(Prep,below), Gra < Grade)
-    );
-    ( % 'b students'
-      Clause = students, 
-      letter_grade(Prep,LowerBound,UpperBound),
-      Gra >= LowerBound, Gra < UpperBound
-    )
-  ).
+
+satisfies(Per,Gen,Gra,[Gender|Tail]) :-
+  synonym(Gen,Gender),
+  satisfies(Per,Gen,Gra,Tail).
+
+satisfies(Per,Gen,Gra,[Above,Number|Tail]) :-
+  synonym(Above,above),
+  number(Number),
+  satisfies(Per,Gen,Gra,Tail),
+  Gra > Number.
+
+satisfies(Per,Gen,Gra,[Below,Number|Tail]) :-
+  synonym(Below,below),
+  number(Number),
+  satisfies(Per,Gen,Gra,Tail),
+  Gra < Number.
+
+satisfies(Per,Gen,Gra,[Letter,Students|Tail]) :-
+  synonym(Students,students),
+  letter_grade(Letter,Bot,Top),
+  satisfies(Per,Gen,Gra,Tail),
+  Gra >= Bot, Gra < Top.
 
 % Stage A2 [5 points].  Modify the code so that it will also return
 % the lowest grade.
@@ -189,8 +201,9 @@ satisfies(Per,Gen,Gra,[Prep,Clause]) :-
 % get_char.  Make sure your input ignores it or your 2nd parse may be messed
 % up.
 %
+
 get_string(X) :- get_string_helper(Y), string_codes(X,Y).
-get_string_helper(X) :- get_code(Y),(Y = 63,get_code(10),X = []; get_string_helper(Z), X = [Y|Z]), !.
+get_string_helper(X) :- get_code(Y),(Y = 63,get_code(10),X = []; Y = 10,get_string_helper(X); get_string_helper(Z), X = [Y|Z]), !.
 get_words(Q) :- get_string(Y), atomic_list_concat(X,' ',Y), maplist(downcase_atom,X,Z), maplist(numerize,Z,Q).
 
 numerize(X,Y) :- atom_number(X,Y), !.
@@ -200,10 +213,18 @@ writeln(X) :- write(X),write('\n').
 
 do_nlp(Start) :-
   get_words(Words),
-  findall(Result,parse(Words,Result),Results),
-  list_to_set(Results,UniqueResults),
-  maplist(writeln,UniqueResults),
-  do_nlp(Start).
+  (
+    member(done,Words),!;
+    (
+      findall(Result,parse(Words,Result),Results),
+      list_to_set(Results,UniqueResults),
+      (
+        length(Results,0),writeln(none);
+        maplist(writeln,UniqueResults)
+      ),
+      do_nlp(Start)
+    )
+  ),!.
 
 % Stage C [30 points]: Improved parsing
 %
