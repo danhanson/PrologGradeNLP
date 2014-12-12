@@ -59,7 +59,17 @@ transitive_same(X,Y,Z) :- (same(X,Q);same(Q,X)), \+ member(Q,Z), transitive_same
 synonym(X,Y) :- X = Y; transitive_same(X,Y,[X]).
 
 parse([count,the,number,of|T],Result) :-
-  parse([how,many|T],Result).
+  parse([count,the|T],Result).
+
+parse([count,the,Nouns],Result) :-
+  parse([how,many,Nouns],Result).
+
+parse([count,the,Nouns,Who|T],Result) :-
+  (synonym(Who,who);synonym(Who,that)),
+  parse([how,many,Nouns|T],Result).
+
+parse([how,Many,Nouns],Result) :-
+  parse([how,Many,Nouns,are,Nouns],Result),!.
 
 parse([how,Many|T],Result) :-
   synonym(Many,many),
@@ -82,6 +92,7 @@ parse(Query,Result) :-
   (
     (
       synonym(Noun,grade),
+	  atom(Adj),
       synonym(Adj,average),
       aggregate_all(bag(G),maplist(satisfies(_,_,G),Restrictions),AllG),
       average(AllG,Grade)
@@ -114,19 +125,19 @@ parse(Query,Result) :-
     synonym(Subject,what), Result = Grade).
 
 splitter(List,Subject,Verb,Adj,Noun,Restrictions) :-
-	subject(List,Subject,T),
-	verb(T,Verb,T2),
-	article(T2,_,T3),
-	adjective(T3,Adj,T4),
-	noun(T4,Noun,T5),
-	restrictions(T5,Restrictions).
+  subject(List,Subject,T),
+  verb(T,Verb,T2),
+  article(T2,_,T3),
+  adjective(T3,Adj,T4),
+  noun(T4,Noun,T5),
+  restrictions(T5,Restrictions).
 
 splitter(List,Subject,Verb,_,Noun,Restrictions) :-
-	subject(List,Subject,T),
-	verb(T,Verb,T2),
-	article(T2,_,T3),
-	noun(T3,Noun,T4),
-	restrictions(T4,Restrictions).
+  subject(List,Subject,T),
+  verb(T,Verb,T2),
+  article(T2,_,T3),
+  noun(T3,Noun,T4),
+  restrictions(T4,Restrictions).
 
 splitter(List,Subject,Verb,_,Noun,Restrictions) :-
   subject(List,Subject,T),
@@ -181,21 +192,21 @@ noun(Student) :- synonym(Student,student).
 restrictions([],[[]]).
 
 restrictions(T,[Restriction|Restrictions]) :-
-	is_restriction(T,Restriction,T2),restrictions(T2,Restrictions).
+  is_restriction(T,Restriction,T2),restrictions(T2,Restrictions).
 
 restrictions([for|T],[Restriction|Restrictions]) :-
-	is_restriction(T,Restriction,T2),restrictions(T2,Restrictions).
+  is_restriction(T,Restriction,T2),restrictions(T2,Restrictions).
 
 restrictions([and|T],[Restriction|Restrictions]) :-
-	is_restriction(T,Restriction,T2),restrictions(T2,Restrictions).
+  is_restriction(T,Restriction,T2),restrictions(T2,Restrictions).
 
 restrictions([with|T],[Restriction|Restrictions]) :-
-	is_restriction(T,Restriction,T2),restrictions(T2,Restrictions).
+  is_restriction(T,Restriction,T2),restrictions(T2,Restrictions).
 
 restrictions([Who,Are|T],[Restriction|Restrictions]) :-
   synonym(Are,are),
   (synonym(Who,who);synonym(Who,and)),
-	is_restriction(T,Restriction,T2),restrictions(T2,Restrictions).
+  is_restriction(T,Restriction,T2),restrictions(T2,Restrictions).
 
 is_gender(X) :- synonym(X,boys); synonym(X,girls).
 
