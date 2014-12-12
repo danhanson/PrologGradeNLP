@@ -92,26 +92,31 @@ parse(Query,Result) :-
   (
     (
       synonym(Noun,grade),
-	  atom(Adj),
-      synonym(Adj,average),
       aggregate_all(bag(G),maplist(satisfies(_,_,G),Restrictions),AllG),
-      average(AllG,Grade)
-    );
-    (
-      synonym(Noun,grade),
-      synonym(Adj,median),
-      aggregate_all(bag(G),maplist(satisfies(_,_,G),Restrictions),AllG),
-      median(AllG,Grade)
-    );
-    (
-      synonym(Noun,grade),
-      grade(Person,Gender,Grade),
-      maplist(satisfies(Person,Gender,Grade),Restrictions),
-      forall(
-        maplist(satisfies(_,_,OtherGrade),Restrictions),
+      (
         (
-          synonym(Adj,highest), Grade >= OtherGrade;
-          synonym(Adj,lowest), Grade =< OtherGrade
+          atom(Adj),
+          synonym(Adj,average),
+          average(AllG,Grade)
+        );
+        (
+          synonym(Adj,median),
+          median(AllG,Grade)
+        );
+        (
+          synonym(Adj,deviation),
+          stddev(AllG,Grade)
+        )
+      );
+      (
+        grade(Person,Gender,Grade),
+        maplist(satisfies(Person,Gender,Grade),Restrictions),
+        forall(
+          maplist(satisfies(_,_,OtherGrade),Restrictions),
+          (
+            synonym(Adj,highest), Grade >= OtherGrade;
+            synonym(Adj,lowest), Grade =< OtherGrade
+          )
         )
       )
     );
@@ -176,6 +181,8 @@ adjective([Lowest|T],lowest,T) :- synonym(Lowest,lowest).
 adjective([Average|T],average,T) :- synonym(Average,average).
 
 adjective([Median|T],median,T) :- synonym(Median,median).
+
+adjective([standard,deviation,of|T],deviation,T).
 
 noun([Grade|T],grade,T) :- synonym(Grade,grade).
 
@@ -382,5 +389,6 @@ do_nlp(Start) :-
 % |: What is the median grade for girls?
 % 88
 %
-% |: What is the standard deviation of grades for boys?
+% |: What is the standard deviation of grades for b students?
+% 4.949747468305833
 %
