@@ -382,3 +382,5 @@ do_nlp(Start) :-
 % |: What is the median grade for girls?
 % 88
 %
+% |: What is the standard deviation of grades for boys?
+%
