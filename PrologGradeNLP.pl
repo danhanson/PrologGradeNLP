@@ -96,26 +96,31 @@ parse([how,Many|T],Result) :-
 parse(Query,Result) :-
   splitter(Query,Subject,_,Adj,Noun,Restrictions),
   (
-    (
-      synonym(Noun,grade),
+    ( % specific or calculable query
+      (synonym(Noun,grade);synonym(Noun,rank)),
       aggregate_all(bag(G),maplist(satisfies(_,_,G),Restrictions),AllG),
       (
-        grade(Adj,_,Grade);
-        (
+        ( % user-specific query
+          grade(Adj,_,Grade),
+          msort(AllG,AscGrades),
+          reverse(AscGrades,DescGrades),
+          nth1(Rank,DescGrades,Grade)
+        );
+        ( % average for a subset
           atom(Adj),
           synonym(Adj,average),
           average(AllG,Grade)
         );
-        (
+        ( % median for a subset
           synonym(Adj,median),
           median(AllG,Grade)
         );
-        (
+        ( % standard deviation for a subset
           synonym(Adj,deviation),
           stddev(AllG,Grade)
         )
       );
-      (
+      ( % query searches for extrema
         grade(Person,Gender,Grade),
         maplist(satisfies(Person,Gender,Grade),Restrictions),
         forall(
@@ -134,7 +139,9 @@ parse(Query,Result) :-
     )
   ),
   ( synonym(Subject,who),  Result = Person;
-    synonym(Subject,what), Result = Grade).
+    synonym(Subject,what), 
+      ( Noun = rank, Result = Rank, !;
+        Result = Grade)).
 
 splitter(List,Subject,Verb,Adj,Noun,Restrictions) :-
   subject(List,Subject,T),
@@ -196,6 +203,9 @@ adjective([standard,deviation,of|T],deviation,T).
 adjective([Possessive|T],Name,T) :- sub_string(Possessive,0,_,1,X), atom_codes(Name,X), grade(Name,_,_).
 
 noun([Grade|T],grade,T) :- synonym(Grade,grade).
+
+noun([rank|T],rank,T).
+noun([class,rank|T],rank,T).
 
 noun([Gender|T],Gender,T) :- is_gender(Gender).
 
@@ -421,3 +431,7 @@ do_nlp(Start) :-
 % |: What is mikes grade?
 % 77
 % (We couldn't get this one to work with an apostrophe in mike's b/c we worked with atoms instead of strings)
+%
+% |: What is sallys class rank?
+% 3
+%
