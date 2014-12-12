@@ -269,6 +269,7 @@ median(A,X) :- sort(A,B), length(B,S),
     X is (Y + Z) / 2).
 stddev(L,X) :-
   length(L,Size),
+  Size > 0,
   sumlist(L,Sum1),
   maplist(sqr,L,Squares),
   sumlist(Squares,Sum2),
