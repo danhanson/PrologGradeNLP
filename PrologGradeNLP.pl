@@ -54,6 +54,7 @@ same(grade,grades).
 same(over,above).
 same(under,below).
 same(who,which).
+
 transitive_same(X,Y,Z) :- (same(X,Y);same(Y,X)), \+ member(Y,Z).
 transitive_same(X,Y,Z) :- (same(X,Q);same(Q,X)), \+ member(Q,Z), transitive_same(Q,Y,[Q|Z]).
 synonym(X,Y) :- X = Y; transitive_same(X,Y,[X]).
@@ -67,6 +68,11 @@ parse([count,the,Nouns],Result) :-
 parse([count,the,Nouns,Who|T],Result) :-
   (synonym(Who,who);synonym(Who,that)),
   parse([how,many,Nouns|T],Result).
+
+parse([count,the,Nouns,With|T],Result) :-
+  synonym(With,with),
+  parse([count,the,Nouns,who,have|T],Result).
+
 
 parse([how,Many,Nouns],Result) :-
   parse([how,Many,Nouns,are,Nouns],Result),!.
@@ -151,7 +157,9 @@ subject([What,Grades|T],what,T) :- synonym(What,what), synonym(Grades,grades).
 
 subject([What,Student|T],who,T) :- synonym(What,what), synonym(Student,student).
 
-subject([Which,Student|T],who,T) :- synonym(Which,which), synonym(Student,student).
+subject([What,Genders|T],who,T2) :- synonym(What,what), is_gender(Genders), append(T,[who,are,Genders],T2).
+
+subject([Which,Genders|T],who,T2) :- synonym(Which,which), is_gender(Genders), append(T,[who,are,Genders],T2).
 
 subject([What|T],what,T) :- synonym(What,what).
 
@@ -340,4 +348,11 @@ do_nlp(Start) :-
 % Include in the comments a fairly complete description of the kinds
 % of new questions you support and any other features you added.
 
+% |: how many girls have a grade above 80 and below 90?
+% 2
+
+% |: which girls have grades above 70?
+% anne
+% sally
+% cathy
 
