@@ -61,34 +61,45 @@ transitive_same(X,Y,Z) :- (same(X,Q);same(Q,X)), \+ member(Q,Z), transitive_same
 synonym(X,Y) :- X = Y; transitive_same(X,Y,[X]).
 
 parse([count,the,number,of|T],Result) :-
-  parse([count,the|T],Result).
+  parse([count,the|T],Result),!.
 
-parse([count,the,Nouns],Result) :-
-  parse([how,many,Nouns],Result).
+parse([count,the|Tail],Result) :-
+  noun(Tail,Nouns,T2),
+  parse([how,many,Nouns|T2],Result),!.
 
-parse([count,the,Nouns,Who|T],Result) :-
+parse([count,the|T],Result) :-
+  noun(T,Nouns,[Who|T2]),
   (synonym(Who,who);synonym(Who,that)),
-  parse([how,many,Nouns|T],Result).
+  parse([how,many,Nouns|T2],Result),!.
 
-parse([count,the,Nouns,With|T],Result) :-
+parse([count,the|T],Result) :-
+  noun(T,Nouns,[With|T2]),
   synonym(With,with),
-  parse([count,the,Nouns,who,have|T],Result).
+  parse([count,the,Nouns,who,have|T2],Result),!.
 
 
-parse([how,Many,Nouns],Result) :-
-  parse([how,Many,Nouns,are,Nouns],Result),!.
+parse([how,Many|T],Result) :-
+  length(T,Length),
+  Length < 3,
+  synonym(Many,many),
+  noun(T,Nouns,T2),
+  parse([how,Many,Nouns,are,Nouns|T2],Result),!.
 
 parse([how,Many|T],Result) :-
   synonym(Many,many),
   (
     noun(T,Nouns,T2),
-    Q = [who | T2],
-    (
-      synonym(Nouns,grades),Q2 = Q,!;
-      append(Q,[who,are,Nouns],Q2)
+		(
+			(
+    		Q = [who | T2]
+			),
+    	(
+   	  	synonym(Nouns,grades),Q2 = Q,!;
+   	  	append(Q,[who,are,Nouns],Q2)
+			)
     );
     Q2 = [who | T]
-  ),
+  ),!,
   findall(Result,parse(Q2,Result),List),
   list_to_set(List,Set),
   length(Set,Result),!.
@@ -102,7 +113,6 @@ parse(Query,Result) :-
       aggregate_all(bag(G),maplist(satisfies(_,_,G),Restrictions),AllG),
       (
         (
-          atom(Adj),
           synonym(Adj,average),
           average(AllG,Grade)
         );
@@ -116,11 +126,12 @@ parse(Query,Result) :-
         )
       );
       (
-        grade(Person,Gender,Grade),
+        !,grade(Person,Gender,Grade),
         maplist(satisfies(Person,Gender,Grade),Restrictions),
         forall(
           maplist(satisfies(_,_,OtherGrade),Restrictions),
           (
+						Adj = 'NONE';
             synonym(Adj,highest), Grade >= OtherGrade;
             synonym(Adj,lowest), Grade =< OtherGrade
           )
@@ -128,9 +139,8 @@ parse(Query,Result) :-
       )
     );
     (
-      is_gender(Noun),
       grade(Person,Gender,Grade),
-      maplist(satisfies(Person,Gender,Grade),[[Noun]|Restrictions])
+      maplist(satisfies(Person,Gender,Grade),[[Noun]|Restrictions]),!
     )
   ),
   ( synonym(Subject,who),  Result = Person;
@@ -144,24 +154,27 @@ splitter(List,Subject,Verb,Adj,Noun,Restrictions) :-
   noun(T4,Noun,T5),
   restrictions(T5,Restrictions).
 
-splitter(List,Subject,Verb,_,Noun,Restrictions) :-
+splitter(List,Subject,Verb,Adj,Noun,Restrictions) :-
   subject(List,Subject,T),
   verb(T,Verb,T2),
-  article(T2,_,T3),
+  article(T2,_,T3),!,
   noun(T3,Noun,T4),
-  restrictions(T4,Restrictions).
+  restrictions(T4,Restrictions),
+  Adj = 'NONE'.
 
-splitter(List,Subject,Verb,_,Noun,Restrictions) :-
+splitter(List,Subject,Verb,Adj,Noun,Restrictions) :-
   subject(List,Subject,T),
   verb(T,Verb,T2),
   Noun = grade,
-  restrictions(T2,Restrictions).
+  restrictions(T2,Restrictions),
+  Adj = 'NONE'.
 
-splitter(List,Subject,Verb,_,Noun,Restrictions) :-
+splitter(List,Subject,Verb,Adj,Noun,Restrictions) :-
   subject(List,Subject,T),
   verb(T,Verb,T2),
   noun(T2,Noun,T3),
-  restrictions(T3,Restrictions).
+  restrictions(T3,Restrictions),
+  Adj = 'NONE'.
 
 subject([Who|T],who,T) :- synonym(who,Who).
 
@@ -169,9 +182,15 @@ subject([What,Grades|T],what,T) :- synonym(What,what), synonym(Grades,grades).
 
 subject([What,Student|T],who,T) :- synonym(What,what), synonym(Student,student).
 
+subject([Which,Student|T],who,T) :- synonym(Which,which), synonym(Student,student).
+
 subject([What,Genders|T],who,T2) :- synonym(What,what), is_gender(Genders), append(T,[who,are,Genders],T2).
 
 subject([Which,Genders|T],who,T2) :- synonym(Which,which), is_gender(Genders), append(T,[who,are,Genders],T2).
+
+subject([What,Letter,Students|T],who,T2) :- synonym(What,what), synonym(Students,student), letter_grade(Letter,_,_), append(T,[who,are,Letter,students],T2).
+
+subject([Which,Letter,Students|T],who,T2) :- synonym(Which,which), synonym(Students,student), letter_grade(Letter,_,_), append(T,[who,are,Letter,students],T2).
 
 subject([What|T],what,T) :- synonym(What,what).
 
@@ -200,13 +219,6 @@ noun([Gender|T],Gender,T) :- is_gender(Gender).
 noun([Student|T],student,T) :- synonym(Student,student).
 
 noun([Letter,Students|T],students,T2) :- synonym(Students,students),letter_grade(Letter,_,_),append(T,[who,are,Letter,students],T2).
-
-noun(Grade) :- synonym(Grade,grade).
-
-noun(Gender) :- is_gender(Gender).
-
-noun(Student) :- synonym(Student,student).
-
 
 restrictions([],[[]]).
 
@@ -406,6 +418,10 @@ do_nlp(Start) :-
 % anne
 % sally
 % cathy
+%
+%
+% |: how many b students are girls?
+% 2
 %
 % |: What is the median grade for boys?
 % 87
