@@ -77,7 +77,6 @@ parse([count,the|T],Result) :-
   synonym(With,with),
   parse([count,the,Nouns,who,have|T2],Result),!.
 
-
 parse([how,Many|T],Result) :-
   length(T,Length),
   Length < 3,
@@ -108,30 +107,36 @@ parse([how,Many|T],Result) :-
 parse(Query,Result) :-
   splitter(Query,Subject,_,Adj,Noun,Restrictions),
   (
-    (
-      synonym(Noun,grade),
+    ( % specific or calculable query
+      (synonym(Noun,grade);synonym(Noun,rank)),
       aggregate_all(bag(G),maplist(satisfies(_,_,G),Restrictions),AllG),
       (
-        (
+        ( % user-specific query
+          grade(Adj,_,Grade),
+          msort(AllG,AscGrades),
+          reverse(AscGrades,DescGrades),
+          nth1(Rank,DescGrades,Grade)
+        );
+        ( % average for a subset
           synonym(Adj,average),
           average(AllG,Grade)
         );
-        (
+        ( % median for a subset
           synonym(Adj,median),
           median(AllG,Grade)
         );
-        (
+        ( % standard deviation for a subset
           synonym(Adj,deviation),
           stddev(AllG,Grade)
         )
       );
-      (
+	  (
         !,grade(Person,Gender,Grade),
         maplist(satisfies(Person,Gender,Grade),Restrictions),
         forall(
           maplist(satisfies(_,_,OtherGrade),Restrictions),
           (
-						Adj = 'NONE';
+			Adj = 'NONE';
             synonym(Adj,highest), Grade >= OtherGrade;
             synonym(Adj,lowest), Grade =< OtherGrade
           )
@@ -144,12 +149,14 @@ parse(Query,Result) :-
     )
   ),
   ( synonym(Subject,who),  Result = Person;
-    synonym(Subject,what), Result = Grade).
+    synonym(Subject,what), 
+      ( Noun = rank, Result = Rank, !;
+        Result = Grade)).
 
 splitter(List,Subject,Verb,Adj,Noun,Restrictions) :-
   subject(List,Subject,T),
   verb(T,Verb,T2),
-  article(T2,_,T3),
+  (article(T2,_,T3); T3 = T2),
   adjective(T3,Adj,T4),
   noun(T4,Noun,T5),
   restrictions(T5,Restrictions).
@@ -157,7 +164,7 @@ splitter(List,Subject,Verb,Adj,Noun,Restrictions) :-
 splitter(List,Subject,Verb,Adj,Noun,Restrictions) :-
   subject(List,Subject,T),
   verb(T,Verb,T2),
-  article(T2,_,T3),!,
+  article(T2,_,T3),
   noun(T3,Noun,T4),
   restrictions(T4,Restrictions),
   Adj = 'NONE'.
@@ -212,7 +219,12 @@ adjective([Median|T],median,T) :- synonym(Median,median).
 
 adjective([standard,deviation,of|T],deviation,T).
 
+adjective([Possessive|T],Name,T) :- sub_string(Possessive,0,_,1,X), atom_codes(Name,X), grade(Name,_,_).
+
 noun([Grade|T],grade,T) :- synonym(Grade,grade).
+
+noun([rank|T],rank,T).
+noun([class,rank|T],rank,T).
 
 noun([Gender|T],Gender,T) :- is_gender(Gender).
 
@@ -400,13 +412,13 @@ do_nlp(Start) :-
 
 % FEATURES WE IMPLEMENTED (shown by example)
 %
-% |: how many students are boys?
+% |: How many students are boys?
 % 2
 %
-% |: how many girls have a grade above 80 and below 90?
+% |: How many girls have a grade above 80 and below 90?
 % 2
 %
-% |: which girls have grades above 70?
+% |: Which girls have grades above 70?
 % anne
 % sally
 % cathy
@@ -426,9 +438,17 @@ do_nlp(Start) :-
 % |: What is the median grade for boys?
 % 87
 %
-% |: What is the median grade for girls?
-% 88
+% |: What is the median grade for girls above 85?
+% 92.5
 %
 % |: What is the standard deviation of grades for b students?
 % 4.949747468305833
+%
+% |: What is mikes grade?
+% 77
+%
+% (We couldn't get this one to work with an apostrophe in mike's b/c we worked with atoms instead of strings)
+%
+% |: What is sallys class rank?
+% 3
 %
