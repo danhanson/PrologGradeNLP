@@ -199,7 +199,7 @@ noun([Gender|T],Gender,T) :- is_gender(Gender).
 
 noun([Student|T],student,T) :- synonym(Student,student).
 
-noun([Letter,Students|T],students,T2) :- synonym(Students,students),letter_grade(Letter,_,_),append(T,[who,are,Letter,students],T2);
+noun([Letter,Students|T],students,T2) :- synonym(Students,students),letter_grade(Letter,_,_),append(T,[who,are,Letter,students],T2).
 
 noun(Grade) :- synonym(Grade,grade).
 
