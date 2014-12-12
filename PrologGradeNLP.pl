@@ -74,7 +74,6 @@ parse([count,the,Nouns,With|T],Result) :-
   synonym(With,with),
   parse([count,the,Nouns,who,have|T],Result).
 
-
 parse([how,Many,Nouns],Result) :-
   parse([how,Many,Nouns,are,Nouns],Result),!.
 
@@ -101,6 +100,7 @@ parse(Query,Result) :-
       synonym(Noun,grade),
       aggregate_all(bag(G),maplist(satisfies(_,_,G),Restrictions),AllG),
       (
+        grade(Adj,_,Grade);
         (
           atom(Adj),
           synonym(Adj,average),
@@ -139,7 +139,7 @@ parse(Query,Result) :-
 splitter(List,Subject,Verb,Adj,Noun,Restrictions) :-
   subject(List,Subject,T),
   verb(T,Verb,T2),
-  article(T2,_,T3),
+  (article(T2,_,T3); T3 = T2),
   adjective(T3,Adj,T4),
   noun(T4,Noun,T5),
   restrictions(T5,Restrictions).
@@ -192,6 +192,8 @@ adjective([Average|T],average,T) :- synonym(Average,average).
 adjective([Median|T],median,T) :- synonym(Median,median).
 
 adjective([standard,deviation,of|T],deviation,T).
+
+adjective([Possessive|T],Name,T) :- sub_string(Possessive,0,_,1,X), atom_codes(Name,X), grade(Name,_,_).
 
 noun([Grade|T],grade,T) :- synonym(Grade,grade).
 
@@ -388,13 +390,13 @@ do_nlp(Start) :-
 
 % FEATURES WE IMPLEMENTED (shown by example)
 %
-% |: how many students are boys?
+% |: How many students are boys?
 % 2
 %
-% |: how many girls have a grade above 80 and below 90?
+% |: How many girls have a grade above 80 and below 90?
 % 2
 %
-% |: which girls have grades above 70?
+% |: Which girls have grades above 70?
 % anne
 % sally
 % cathy
@@ -416,3 +418,6 @@ do_nlp(Start) :-
 % |: What is the standard deviation of grades for b students?
 % 4.949747468305833
 %
+% |: What is mikes grade?
+% 77
+% (We couldn't get this one to work with an apostrophe in mike's b/c we worked with atoms instead of strings)
