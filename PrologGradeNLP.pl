@@ -54,6 +54,7 @@ same(grade,grades).
 same(over,above).
 same(under,below).
 same(who,which).
+same(many,much).
 
 transitive_same(X,Y,Z) :- (same(X,Y);same(Y,X)), \+ member(Y,Z).
 transitive_same(X,Y,Z) :- (same(X,Q);same(Q,X)), \+ member(Q,Z), transitive_same(Q,Y,[Q|Z]).
@@ -102,6 +103,12 @@ parse(Query,Result) :-
       synonym(Adj,average),
       aggregate_all(bag(G),maplist(satisfies(_,_,G),Restrictions),AllG),
       average(AllG,Grade)
+    );
+    (
+      synonym(Noun,grade),
+      synonym(Adj,median),
+      aggregate_all(bag(G),maplist(satisfies(_,_,G),Restrictions),AllG),
+      median(AllG,Grade)
     );
     (
       synonym(Noun,grade),
@@ -177,17 +184,22 @@ adjective([Lowest|T],lowest,T) :- synonym(Lowest,lowest).
 
 adjective([Average|T],average,T) :- synonym(Average,average).
 
+adjective([Median|T],median,T) :- synonym(Median,median).
+
 noun([Grade|T],grade,T) :- synonym(Grade,grade).
 
 noun([Gender|T],Gender,T) :- is_gender(Gender).
 
 noun([Student|T],student,T) :- synonym(Student,student).
 
+noun([Letter,Students|T],students,T2) :- synonym(Students,students),letter_grade(Letter,_,_),append(T,[who,are,Letter,students],T2);
+
 noun(Grade) :- synonym(Grade,grade).
 
 noun(Gender) :- is_gender(Gender).
 
 noun(Student) :- synonym(Student,student).
+
 
 restrictions([],[[]]).
 
@@ -249,7 +261,25 @@ satisfies(Per,Gen,Gra,[Letter,Students|Tail]) :-
   satisfies(Per,Gen,Gra,Tail),
   Gra >= Bot, Gra < Top.
 
-average(L,X) :- length(L,S), sumlist(L,T), X is T / S.
+average(L,X) :- length(L,S), sumlist(L,T), S \= 0, X is T / S.
+median(A,X) :- sort(A,B), length(B,S),
+  ( S mod 2 =:= 1,
+    I is (S + 1) / 2,
+    nth1(I,B,X);
+    S mod 2 =:= 0,
+    I is S / 2,
+    J is I + 1,
+    nth1(I,B,Y),
+    nth1(J,B,Z),
+    X is (Y + Z) / 2).
+stddev(L,X) :-
+  length(L,Size),
+  sumlist(L,Sum1),
+  maplist(sqr,L,Squares),
+  sumlist(Squares,Sum2),
+  V is (Sum2 - (Sum1*Sum1/Size)) / (Size - 1),
+  sqrt(V,X).
+sqr(X,Y) :- Y is X*X.
 
 % Stage A2 [5 points].  Modify the code so that it will also return
 % the lowest grade.
@@ -348,11 +378,32 @@ do_nlp(Start) :-
 % Include in the comments a fairly complete description of the kinds
 % of new questions you support and any other features you added.
 
+% FEATURES WE IMPLEMENTED (shown by example)
+%
+% |: how many students are boys?
+% 2
+%
 % |: how many girls have a grade above 80 and below 90?
 % 2
-
+%
 % |: which girls have grades above 70?
 % anne
 % sally
 % cathy
-
+%
+% |: What is the average grade?
+% 88
+% 
+% |: Who are the girls?
+% anne
+% sally
+% cathy
+%
+% |: What is the median grade for boys?
+% 87
+%
+% |: What is the median grade for girls?
+% 88
+%
+% |: What is the standard deviation of grades for boys?
+%
