@@ -88,6 +88,12 @@ parse(Query,Result) :-
     );
     (
       synonym(Noun,grade),
+      synonym(Adj,median),
+      aggregate_all(bag(G),maplist(satisfies(_,_,G),Restrictions),AllG),
+      median(AllG,Grade)
+    );
+    (
+      synonym(Noun,grade),
       grade(Person,Gender,Grade),
       maplist(satisfies(Person,Gender,Grade),Restrictions),
       forall(
@@ -98,11 +104,11 @@ parse(Query,Result) :-
         )
       )
     );
-	  (
+    (
       is_gender(Noun),
       grade(Person,Gender,Grade),
       maplist(satisfies(Person,Gender,Grade),[[Noun]|Restrictions])
-	  )
+    )
   ),
   ( synonym(Subject,who),  Result = Person;
     synonym(Subject,what), Result = Grade).
@@ -157,6 +163,8 @@ adjective([Highest|T],highest,T) :- synonym(Highest,highest).
 adjective([Lowest|T],lowest,T) :- synonym(Lowest,lowest).
 
 adjective([Average|T],average,T) :- synonym(Average,average).
+
+adjective([Median|T],median,T) :- synonym(Median,median).
 
 noun([Grade|T],grade,T) :- synonym(Grade,grade).
 
@@ -230,7 +238,25 @@ satisfies(Per,Gen,Gra,[Letter,Students|Tail]) :-
   satisfies(Per,Gen,Gra,Tail),
   Gra >= Bot, Gra < Top.
 
-average(L,X) :- length(L,S), sumlist(L,T), X is T / S.
+average(L,X) :- length(L,S), sumlist(L,T), S \= 0, X is T / S.
+median(A,X) :- sort(A,B), length(B,S),
+  ( S mod 2 =:= 1,
+    I is (S + 1) / 2,
+    nth1(I,B,X);
+    S mod 2 =:= 0,
+    I is S / 2,
+    J is I + 1,
+    nth1(I,B,Y),
+    nth1(J,B,Z),
+    X is (Y + Z) / 2).
+stddev(L,X) :-
+  length(L,Size),
+  sumlist(L,Sum1),
+  maplist(sqr,L,Squares),
+  sumlist(Squares,Sum2),
+  V is (Sum2 - (Sum1*Sum1/Size)) / (Size - 1),
+  sqrt(V,X).
+sqr(X,Y) :- Y is X*X.
 
 % Stage A2 [5 points].  Modify the code so that it will also return
 % the lowest grade.
@@ -329,4 +355,19 @@ do_nlp(Start) :-
 % Include in the comments a fairly complete description of the kinds
 % of new questions you support and any other features you added.
 
-
+% FEATURES WE IMPLEMENTED (shown by example)
+%
+% |: What is the average grade?
+% 88
+% 
+% |: Who are the girls?
+% anne
+% sally
+% cathy
+%
+% |: What is the median grade for boys?
+% 87
+%
+% |: What is the median grade for girls?
+% 88
+%
